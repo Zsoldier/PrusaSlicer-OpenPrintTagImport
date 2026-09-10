@@ -19,7 +19,9 @@ function App() {
   const [query, setQuery] = useState('')
   const [brand, setBrand] = useState('all')
   const [type, setType] = useState('all')
+  const [printer, setPrinter] = useState('')
   const [template, setTemplate] = useState('')
+  const [templateQuery, setTemplateQuery] = useState('')
   const [profileName, setProfileName] = useState('')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
@@ -28,7 +30,8 @@ function App() {
   useEffect(() => {
     Promise.all([window.openPrintTag.getInfo(), window.openPrintTag.loadCatalog()]).then(([appInfo, savedCatalog]) => {
       const firstMaterial = savedCatalog.materials[0] ?? null
-      setInfo(appInfo); setTemplate(appInfo.templates[0]?.id ?? ''); setCatalog(savedCatalog); setSelected(firstMaterial)
+      const firstPreset = appInfo.templates[0]
+      setInfo(appInfo); setPrinter(firstPreset?.printer ?? ''); setTemplate(firstPreset?.id ?? ''); setCatalog(savedCatalog); setSelected(firstMaterial)
       if (firstMaterial) setProfileName(`${firstMaterial.brandName} ${firstMaterial.name}`)
     }).catch((error) => setNotice(friendlyError(error)))
   }, [])
@@ -40,6 +43,9 @@ function App() {
 
   const brands = [...new Set(catalog.materials.map((material) => material.brandName))].sort()
   const types = [...new Set(catalog.materials.map((material) => material.type))].sort()
+  const printers = [...new Set((info?.templates ?? []).map((item) => item.printer))].sort()
+  const matchingTemplates = (info?.templates ?? []).filter((item) =>
+    item.printer === printer && `${item.name} ${item.source}`.toLowerCase().includes(templateQuery.toLowerCase()))
   const visible = catalog.materials.filter((material) => {
     const text = `${material.name} ${material.brandName} ${material.type}`.toLowerCase()
     return text.includes(deferredQuery) && (brand === 'all' || material.brandName === brand) && (type === 'all' || material.type === type)
@@ -61,6 +67,19 @@ function App() {
       const path = await window.openPrintTag.installProfile({ material: selected, template, profileName })
       setNotice(`Installed ${path}. Restart PrusaSlicer to load it.`)
     } catch (error) { setNotice(friendlyError(error)) } finally { setBusy(false) }
+  }
+
+  function filterTemplates(value: string): void {
+    setTemplateQuery(value)
+    const matches = (info?.templates ?? []).filter((item) =>
+      item.printer === printer && `${item.name} ${item.source}`.toLowerCase().includes(value.toLowerCase()))
+    if (!matches.some((item) => item.id === template)) setTemplate(matches[0]?.id ?? '')
+  }
+
+  function selectPrinter(value: string): void {
+    setPrinter(value)
+    setTemplateQuery('')
+    setTemplate((info?.templates ?? []).find((item) => item.printer === value)?.id ?? '')
   }
 
   return <main>
@@ -101,7 +120,9 @@ function App() {
             <div><span>Chamber</span><strong>{selected.chamberTemperature == null ? 'Not specified' : `${selected.chamberTemperature} C`}</strong></div>
           </div>
           <div className="install-form"><p className="section-label">INSTALL</p>
-            <label>Base preset<select value={template} onChange={(event) => setTemplate(event.target.value)}>{info?.templates.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.source})</option>)}</select></label>
+            <label>Target printer<select value={printer} onChange={(event) => selectPrinter(event.target.value)}>{printers.map((item) => <option key={item}>{item}</option>)}</select></label>
+            <label>Find base preset<input value={templateQuery} onChange={(event) => filterTemplates(event.target.value)} placeholder="Material or vendor" /></label>
+            <label>Base preset<select value={template} onChange={(event) => setTemplate(event.target.value)}>{matchingTemplates.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.source})</option>)}</select></label>
             <label>Profile name<input value={profileName} onChange={(event) => setProfileName(event.target.value)} /></label>
             {info?.templates.length === 0 && <p className="warning">Create one custom filament preset in PrusaSlicer first.</p>}
             <button className="install-button" onClick={() => void install()} disabled={busy || !template || !profileName.trim()}><Upload size={17} /> Install profile</button>

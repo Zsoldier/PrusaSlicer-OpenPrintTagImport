@@ -8,8 +8,17 @@ export interface VendorProfile {
   contents: string
 }
 
+export function targetPrinterFromProfile(name: string, contents = ''): string {
+  const inheritedName = contents.match(/^inherits\s*=\s*(.+)$/m)?.[1].trim()
+  const qualifiedName = inheritedName || name
+  const separator = qualifiedName.lastIndexOf('@')
+  return separator >= 0 ? qualifiedName.slice(separator + 1).trim() : 'General / custom'
+}
+
 function sectionsFromBundle(source: string): Map<string, IniSection> {
-  const document = ini.parse(source) as Record<string, unknown>
+  const escapedSectionNames = source.replace(/^\[([^\]]*)\]\s*$/gm, (_line, name: string) =>
+    `[${name.replaceAll('.', '\\.')}]`)
+  const document = ini.parse(escapedSectionNames) as Record<string, unknown>
   const sections = new Map<string, IniSection>()
   for (const [sectionName, value] of Object.entries(document)) {
     if (!sectionName.startsWith('filament:') || typeof value !== 'object' || value == null) continue

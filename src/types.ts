@@ -4,6 +4,6 @@ export interface Material {
   minBedTemperature: number | null; maxBedTemperature: number | null; chamberTemperature: number | null; sourceUrl: string
 }
 export interface Catalog { materials: Material[]; updatedAt: string }
-export interface BasePreset { id: string; name: string; source: 'Built-in' | 'User' }
+export interface BasePreset { id: string; name: string; printer: string; source: 'Built-in' | 'User' }
 export interface AppInfo { configDirectory: string; templates: BasePreset[]; catalogUpdatedAt: string | null }
 export interface InstallRequest { material: Material; template: string; profileName: string }

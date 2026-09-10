@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import { autoUpdater } from 'electron-updater'
+import electronUpdater from 'electron-updater'
 import { unzipSync } from 'fflate'
 import { parse } from 'yaml'
 import { copyFile, mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises'
@@ -9,10 +9,11 @@ import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { AppInfo, BasePreset, Catalog, InstallRequest, Material } from './contracts.js'
 import { buildProfile, safeProfileName } from './profile.js'
-import { listVendorProfiles, loadVendorProfile } from './vendorProfiles.js'
+import { listVendorProfiles, loadVendorProfile, targetPrinterFromProfile } from './vendorProfiles.js'
 
 const DATABASE_ARCHIVE = 'https://github.com/OpenPrintTag/openprinttag-database/archive/refs/heads/main-pr.zip'
 const DATABASE_BLOB = 'https://github.com/OpenPrintTag/openprinttag-database/blob/main-pr/'
+const { autoUpdater } = electronUpdater
 const currentDirectory = fileURLToPath(new URL('.', import.meta.url))
 const UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000
 
@@ -93,8 +94,16 @@ async function listTemplates(): Promise<BasePreset[]> {
   const vendorDirectory = join(configDirectory(), 'vendor')
   try {
     const entries = await readdir(filamentDirectory, { withFileTypes: true })
-    presets.push(...entries.filter((entry) => entry.isFile() && entry.name.endsWith('.ini')).map((entry) => ({
-      id: `user:${encodeURIComponent(entry.name)}`, name: entry.name.replace(/\.ini$/, ''), source: 'User' as const,
+    const files = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.ini'))
+    presets.push(...await Promise.all(files.map(async (entry) => {
+      const name = entry.name.replace(/\.ini$/, '')
+      const contents = await readFile(join(filamentDirectory, entry.name), 'utf8')
+      return {
+        id: `user:${encodeURIComponent(entry.name)}`,
+        name,
+        printer: targetPrinterFromProfile(name, contents),
+        source: 'User' as const,
+      }
     })))
   } catch { /* PrusaSlicer may not have any user presets yet. */ }
   try {
@@ -102,7 +111,10 @@ async function listTemplates(): Promise<BasePreset[]> {
     for (const entry of entries.filter((item) => item.isFile() && item.name.endsWith('.ini'))) {
       const source = await readFile(join(vendorDirectory, entry.name), 'utf8')
       presets.push(...listVendorProfiles(source).map((name) => ({
-        id: `vendor:${encodeURIComponent(entry.name)}:${encodeURIComponent(name)}`, name, source: 'Built-in' as const,
+        id: `vendor:${encodeURIComponent(entry.name)}:${encodeURIComponent(name)}`,
+        name,
+        printer: targetPrinterFromProfile(name),
+        source: 'Built-in' as const,
       })))
     }
   } catch { /* PrusaSlicer may not be installed or configured yet. */ }

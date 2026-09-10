@@ -6,9 +6,9 @@ A desktop app that downloads the OpenPrintTag material database and creates loca
 
 Download the latest compiled packages from [GitHub Releases](https://github.com/Zsoldier/PrusaSlicer-OpenPrintTagImport/releases/latest):
 
-- macOS Apple Silicon: `OpenPrintTag-Importer-0.1.0-arm64-mac.zip`
-- Windows installer: `OpenPrintTag-Importer-Setup-0.1.0.exe`
-- Windows portable: `OpenPrintTag-Importer-0.1.0-win.zip`
+- macOS Apple Silicon: `OpenPrintTag-Importer-0.1.1-arm64-mac.zip`
+- Windows installer: `OpenPrintTag-Importer-Setup-0.1.1.exe`
+- Windows portable: `OpenPrintTag-Importer-0.1.1-win.zip`
 
 <a href="https://www.buymeacoffee.com/zsoldier" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
@@ -16,8 +16,8 @@ Download the latest compiled packages from [GitHub Releases](https://github.com/
 
 1. Sync the [`main-pr` branch of the OpenPrintTag database](https://github.com/OpenPrintTag/openprinttag-database/tree/main-pr).
 2. Search or filter its FFF materials.
-3. Choose a bundled or custom PrusaSlicer filament preset as a base.
-4. Preview and install the mapped profile.
+3. Choose the target printer, then select one of its bundled or custom filament presets as a base.
+4. Preview and install a profile that retains the selected printer compatibility.
 
 The base preset retains printer compatibility, cooling, retraction, flow, and filament G-code. The importer replaces only values available from OpenPrintTag: nozzle and bed temperature, chamber temperature, color, density, material type, vendor, and a source link in the notes.
 

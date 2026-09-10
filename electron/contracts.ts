@@ -22,6 +22,7 @@ export interface Catalog {
 export interface BasePreset {
   id: string
   name: string
+  printer: string
   source: 'Built-in' | 'User'
 }
 
