@@ -67,6 +67,12 @@
         "zip"
       ]
     },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    },
     "publish": {
       "provider": "github",
       "owner": "Zsoldier",

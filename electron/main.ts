@@ -3,7 +3,7 @@ import electronUpdater from 'electron-updater'
 import { unzipSync } from 'fflate'
 import { parse } from 'yaml'
 import { copyFile, mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises'
-import { constants } from 'node:fs'
+import { constants, existsSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -20,6 +20,8 @@ const UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000
 function configDirectory(): string {
   if (process.platform === 'darwin') return join(app.getPath('appData'), 'PrusaSlicer')
   if (process.platform === 'win32') return join(app.getPath('appData'), 'PrusaSlicer')
+  const flatpakPath = join(app.getPath('home'), '.var', 'app', 'com.prusa3d.PrusaSlicer', 'config', 'PrusaSlicer')
+  if (existsSync(flatpakPath)) return flatpakPath
   return join(app.getPath('home'), '.config', 'PrusaSlicer')
 }
 
