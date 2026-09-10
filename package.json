@@ -48,6 +48,7 @@
   "build": {
     "appId": "org.openprinttag.prusaslicer-importer",
     "productName": "OpenPrintTag Importer",
+    "afterPack": "scripts/afterPack.cjs",
     "files": [
       "dist/**",
       "dist-electron/**",
