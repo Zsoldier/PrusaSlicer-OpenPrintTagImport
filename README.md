@@ -2,6 +2,8 @@
 
 A desktop app that downloads the OpenPrintTag material database and creates local PrusaSlicer filament presets.
 
+<a href="https://www.buymeacoffee.com/zsoldier" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
 ## How it works
 
 1. Sync the [`main-pr` branch of the OpenPrintTag database](https://github.com/OpenPrintTag/openprinttag-database/tree/main-pr).
@@ -47,5 +49,3 @@ GH_TOKEN=... npm run release
 macOS releases must be signed for automatic updates. Windows automatic updates use the generated NSIS installer; the ZIP remains available as a portable download.
 
 Packaged applications are written to `release/`.
-
-<a href="https://www.buymeacoffee.com/zsoldier" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 60px !important;width: 217px !important;" ></a>
