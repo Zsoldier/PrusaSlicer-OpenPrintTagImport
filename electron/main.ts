@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { AppInfo, BasePreset, Catalog, InstallRequest, Material, SlicerInstallation, SlicerInstallationId } from './contracts.js'
+import { linuxConfigDirectory } from './configDirectory.js'
 import { buildProfile, safeProfileName } from './profile.js'
 import { buildPrusa3Profile, listPrusa3Profiles } from './profile3.js'
 import { listVendorProfiles, loadVendorProfile, targetPrinterFromProfile } from './vendorProfiles.js'
@@ -21,7 +22,7 @@ const UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000
 function configDirectory(installationId: SlicerInstallationId): string {
   const directoryName = installationId === '2.x' ? 'PrusaSlicer' : 'PrusaSlicer3-dev'
   if (process.platform === 'darwin' || process.platform === 'win32') return join(app.getPath('appData'), directoryName)
-  return join(app.getPath('home'), '.config', directoryName)
+  return linuxConfigDirectory(app.getPath('home'), directoryName)
 }
 
 function installations(): SlicerInstallation[] {

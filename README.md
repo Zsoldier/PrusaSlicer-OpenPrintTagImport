@@ -9,6 +9,7 @@ Download the latest compiled packages from [GitHub Releases](https://github.com/
 - macOS Apple Silicon: `OpenPrintTag-Importer-0.1.4-arm64-mac.zip`
 - Windows installer: `OpenPrintTag-Importer-Setup-0.1.4.exe`
 - Windows portable: `OpenPrintTag-Importer-0.1.4-win.zip`
+- Linux AppImage: `OpenPrintTag-Importer-0.1.4-x86_64.AppImage`
 
 <a href="https://www.buymeacoffee.com/zsoldier" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
@@ -27,6 +28,8 @@ Existing files are never overwritten. Restart PrusaSlicer after installation.
 
 - PrusaSlicer 2.x uses INI presets in the `PrusaSlicer/filament` and `PrusaSlicer/vendor` directories.
 - PrusaSlicer 3.0 alpha support is experimental. It uses YAML presets in `PrusaSlicer3-dev/presets` and preserves the selected base preset's complete variant tree.
+
+On Linux, the importer supports both native PrusaSlicer configuration under `~/.config` and the official Flatpak configuration under `~/.var/app/com.prusa3d.PrusaSlicer/config`. If both exist, the native configuration is used.
 
 Open PrusaSlicer 3.0 once before importing so it can initialize and download its profile repository. The alpha directory and preset schema may change before the stable 3.0 release; 2.x support remains independent.
 
@@ -75,3 +78,9 @@ APPLE_KEYCHAIN_PROFILE=mmp-notary npm run package
 Do not commit Apple credentials. Windows automatic updates use the generated NSIS installer; the ZIP remains available as a portable download.
 
 Packaged applications are written to `release/`.
+
+Linux packaging produces an AppImage. Run `npm run package` on Linux, then make the generated file executable if needed:
+
+```bash
+chmod +x release/OpenPrintTag-Importer-*.AppImage
+```
