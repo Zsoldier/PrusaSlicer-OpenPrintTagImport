@@ -46,6 +46,17 @@ To publish a GitHub Release and its update metadata, increment `version` in `pac
 GH_TOKEN=... npm run release
 ```
 
-macOS releases must be signed for automatic updates. Windows automatic updates use the generated NSIS installer; the ZIP remains available as a portable download.
+macOS releases must be signed and notarized. Store Apple notarization credentials in Keychain once, then expose that profile to electron-builder when packaging:
+
+```bash
+xcrun notarytool store-credentials mmp-notary \
+  --apple-id "you@example.com" \
+  --team-id "TEAMID" \
+  --password "app-specific-password"
+
+APPLE_KEYCHAIN_PROFILE=mmp-notary npm run package
+```
+
+Do not commit Apple credentials. Windows automatic updates use the generated NSIS installer; the ZIP remains available as a portable download.
 
 Packaged applications are written to `release/`.
