@@ -4,7 +4,7 @@ A desktop app that downloads the OpenPrintTag material database and creates loca
 
 ## How it works
 
-1. Sync the `main-pr` branch of the OpenPrintTag database.
+1. Sync the [`main-pr` branch of the OpenPrintTag database](https://github.com/OpenPrintTag/openprinttag-database/tree/main-pr).
 2. Search or filter its FFF materials.
 3. Choose a bundled or custom PrusaSlicer filament preset as a base.
 4. Preview and install the mapped profile.
