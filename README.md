@@ -6,9 +6,9 @@ A desktop app that downloads the OpenPrintTag material database and creates loca
 
 Download the latest compiled packages from [GitHub Releases](https://github.com/Zsoldier/PrusaSlicer-OpenPrintTagImport/releases/latest):
 
-- macOS Apple Silicon: `OpenPrintTag-Importer-0.1.2-arm64-mac.zip`
-- Windows installer: `OpenPrintTag-Importer-Setup-0.1.2.exe`
-- Windows portable: `OpenPrintTag-Importer-0.1.2-win.zip`
+- macOS Apple Silicon: `OpenPrintTag-Importer-0.1.3-arm64-mac.zip`
+- Windows installer: `OpenPrintTag-Importer-Setup-0.1.3.exe`
+- Windows portable: `OpenPrintTag-Importer-0.1.3-win.zip`
 
 <a href="https://www.buymeacoffee.com/zsoldier" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
@@ -16,12 +16,19 @@ Download the latest compiled packages from [GitHub Releases](https://github.com/
 
 1. Sync the [`main-pr` branch of the OpenPrintTag database](https://github.com/OpenPrintTag/openprinttag-database/tree/main-pr).
 2. Search its FFF materials or hide records missing required profile values.
-3. Choose the target printer, then select one of its bundled or custom filament presets as a base.
+3. Choose the PrusaSlicer version and target printer, then select one of its bundled or custom filament presets as a base.
 4. Preview and install a profile that retains the selected printer compatibility.
 
 The base preset retains printer compatibility, cooling, retraction, flow, and filament G-code. The importer replaces only values available from OpenPrintTag: nozzle and bed temperature, chamber temperature, color, density, material type, vendor, and a source link in the notes.
 
-The generated profile is written to PrusaSlicer's `filament` configuration folder. Existing files are never overwritten. Restart PrusaSlicer after installation.
+Existing files are never overwritten. Restart PrusaSlicer after installation.
+
+## PrusaSlicer compatibility
+
+- PrusaSlicer 2.x uses INI presets in the `PrusaSlicer/filament` and `PrusaSlicer/vendor` directories.
+- PrusaSlicer 3.0 alpha support is experimental. It uses YAML presets in `PrusaSlicer3-dev/presets` and preserves the selected base preset's complete variant tree.
+
+Open PrusaSlicer 3.0 once before importing so it can initialize and download its profile repository. The alpha directory and preset schema may change before the stable 3.0 release; 2.x support remains independent.
 
 Packaged builds check GitHub Releases for updates shortly after launch and every four hours. Updates download in the background, then the app asks before restarting to install them.
 

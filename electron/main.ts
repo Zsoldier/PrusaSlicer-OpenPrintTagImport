@@ -7,8 +7,9 @@ import { constants } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { AppInfo, BasePreset, Catalog, InstallRequest, Material } from './contracts.js'
+import type { AppInfo, BasePreset, Catalog, InstallRequest, Material, SlicerInstallation, SlicerInstallationId } from './contracts.js'
 import { buildProfile, safeProfileName } from './profile.js'
+import { buildPrusa3Profile, listPrusa3Profiles } from './profile3.js'
 import { listVendorProfiles, loadVendorProfile, targetPrinterFromProfile } from './vendorProfiles.js'
 
 const DATABASE_ARCHIVE = 'https://github.com/OpenPrintTag/openprinttag-database/archive/refs/heads/main-pr.zip'
@@ -17,10 +18,17 @@ const { autoUpdater } = electronUpdater
 const currentDirectory = fileURLToPath(new URL('.', import.meta.url))
 const UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000
 
-function configDirectory(): string {
-  if (process.platform === 'darwin') return join(app.getPath('appData'), 'PrusaSlicer')
-  if (process.platform === 'win32') return join(app.getPath('appData'), 'PrusaSlicer')
-  return join(app.getPath('home'), '.config', 'PrusaSlicer')
+function configDirectory(installationId: SlicerInstallationId): string {
+  const directoryName = installationId === '2.x' ? 'PrusaSlicer' : 'PrusaSlicer3-dev'
+  if (process.platform === 'darwin' || process.platform === 'win32') return join(app.getPath('appData'), directoryName)
+  return join(app.getPath('home'), '.config', directoryName)
+}
+
+function installations(): SlicerInstallation[] {
+  return [
+    { id: '2.x', name: 'PrusaSlicer 2.x', configDirectory: configDirectory('2.x'), experimental: false },
+    { id: '3.0-alpha', name: 'PrusaSlicer 3.0 alpha', configDirectory: configDirectory('3.0-alpha'), experimental: true },
+  ]
 }
 
 function catalogPath(): string {
@@ -92,10 +100,10 @@ async function syncCatalog(): Promise<Catalog> {
   return catalog
 }
 
-async function listTemplates(): Promise<BasePreset[]> {
+async function listLegacyTemplates(): Promise<BasePreset[]> {
   const presets: BasePreset[] = []
-  const filamentDirectory = join(configDirectory(), 'filament')
-  const vendorDirectory = join(configDirectory(), 'vendor')
+  const filamentDirectory = join(configDirectory('2.x'), 'filament')
+  const vendorDirectory = join(configDirectory('2.x'), 'vendor')
   try {
     const entries = await readdir(filamentDirectory, { withFileTypes: true })
     const files = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.ini'))
@@ -103,10 +111,11 @@ async function listTemplates(): Promise<BasePreset[]> {
       const name = entry.name.replace(/\.ini$/, '')
       const contents = await readFile(join(filamentDirectory, entry.name), 'utf8')
       return {
-        id: `user:${encodeURIComponent(entry.name)}`,
+        id: `v2:user:${encodeURIComponent(entry.name)}`,
         name,
         printer: targetPrinterFromProfile(name, contents),
         source: 'User' as const,
+        installationId: '2.x' as const,
       }
     })))
   } catch { /* PrusaSlicer may not have any user presets yet. */ }
@@ -115,40 +124,112 @@ async function listTemplates(): Promise<BasePreset[]> {
     for (const entry of entries.filter((item) => item.isFile() && item.name.endsWith('.ini'))) {
       const source = await readFile(join(vendorDirectory, entry.name), 'utf8')
       presets.push(...listVendorProfiles(source).map((name) => ({
-        id: `vendor:${encodeURIComponent(entry.name)}:${encodeURIComponent(name)}`,
+        id: `v2:vendor:${encodeURIComponent(entry.name)}:${encodeURIComponent(name)}`,
         name,
         printer: targetPrinterFromProfile(name),
         source: 'Built-in' as const,
+        installationId: '2.x' as const,
       })))
     }
   } catch { /* PrusaSlicer may not be installed or configured yet. */ }
   return presets.sort((left, right) => left.source.localeCompare(right.source) || left.name.localeCompare(right.name))
 }
 
-async function loadTemplate(reference: string): Promise<string> {
-  if (reference.startsWith('user:')) {
-    const filename = decodeURIComponent(reference.slice('user:'.length))
+function safeComponent(encoded: string, extension?: string): string {
+  const value = decodeURIComponent(encoded)
+  if (basename(value) !== value || (extension && !value.endsWith(extension))) throw new Error('Invalid preset path.')
+  return value
+}
+
+async function listPrusa3Scope(scope: 'local' | 'user', source: BasePreset['source']): Promise<BasePreset[]> {
+  const presets: BasePreset[] = []
+  const scopeDirectory = join(configDirectory('3.0-alpha'), 'presets', scope)
+  try {
+    for (const repository of (await readdir(scopeDirectory, { withFileTypes: true })).filter((entry) => entry.isDirectory())) {
+      const repositoryDirectory = join(scopeDirectory, repository.name)
+      for (const vendor of (await readdir(repositoryDirectory, { withFileTypes: true })).filter((entry) => entry.isDirectory())) {
+        const vendorDirectory = join(repositoryDirectory, vendor.name)
+        const files = (await readdir(vendorDirectory, { withFileTypes: true }))
+          .filter((entry) => entry.isFile() && entry.name.endsWith('.yaml'))
+        for (const file of files) {
+          const contents = await readFile(join(vendorDirectory, file.name), 'utf8')
+          presets.push(...listPrusa3Profiles(contents).map((profile) => ({
+            id: ['v3', scope, repository.name, vendor.name, file.name, profile.name].map(encodeURIComponent).join(':'),
+            name: profile.name,
+            printer: profile.printer,
+            source,
+            installationId: '3.0-alpha' as const,
+          })))
+        }
+      }
+    }
+  } catch { /* PrusaSlicer 3.0 may not be installed or initialized yet. */ }
+  return presets
+}
+
+async function listTemplates(): Promise<BasePreset[]> {
+  const presets = [
+    ...await listLegacyTemplates(),
+    ...await listPrusa3Scope('local', 'Built-in'),
+    ...await listPrusa3Scope('user', 'User'),
+  ]
+  return presets.sort((left, right) => left.installationId.localeCompare(right.installationId) ||
+    left.source.localeCompare(right.source) || left.name.localeCompare(right.name))
+}
+
+async function loadLegacyTemplate(reference: string): Promise<string> {
+  if (reference.startsWith('v2:user:')) {
+    const filename = decodeURIComponent(reference.slice('v2:user:'.length))
     if (basename(filename) !== filename || !filename.endsWith('.ini')) throw new Error('Invalid user base preset.')
-    return readFile(join(configDirectory(), 'filament', filename), 'utf8')
+    return readFile(join(configDirectory('2.x'), 'filament', filename), 'utf8')
   }
-  if (reference.startsWith('vendor:')) {
-    const [encodedBundle, encodedName] = reference.slice('vendor:'.length).split(':')
+  if (reference.startsWith('v2:vendor:')) {
+    const [encodedBundle, encodedName] = reference.slice('v2:vendor:'.length).split(':')
     if (!encodedBundle || !encodedName) throw new Error('Invalid built-in base preset.')
     const bundle = decodeURIComponent(encodedBundle)
     const name = decodeURIComponent(encodedName)
     if (basename(bundle) !== bundle || !bundle.endsWith('.ini')) throw new Error('Invalid vendor bundle.')
-    const source = await readFile(join(configDirectory(), 'vendor', bundle), 'utf8')
+    const source = await readFile(join(configDirectory('2.x'), 'vendor', bundle), 'utf8')
     return loadVendorProfile(source, name).contents
   }
   throw new Error('Unknown base preset type.')
 }
 
+function prusa3Reference(reference: string): { source: 'local' | 'user'; repository: string; vendor: string; file: string } {
+  const [version, encodedScope, encodedRepository, encodedVendor, encodedFile] = reference.split(':')
+  if (version !== 'v3' || (encodedScope !== 'local' && encodedScope !== 'user')) throw new Error('Invalid PrusaSlicer 3.0 base preset.')
+  return {
+    source: encodedScope,
+    repository: safeComponent(encodedRepository),
+    vendor: safeComponent(encodedVendor),
+    file: safeComponent(encodedFile, '.yaml'),
+  }
+}
+
 async function installProfile(request: InstallRequest): Promise<string> {
-  const filamentDirectory = join(configDirectory(), 'filament')
-  const template = await loadTemplate(request.template)
   const profileName = safeProfileName(request.profileName)
+  if (request.template.startsWith('v3:')) {
+    const reference = prusa3Reference(request.template)
+    const templatePath = join(configDirectory('3.0-alpha'), 'presets', reference.source, reference.repository, reference.vendor, reference.file)
+    const template = await readFile(templatePath, 'utf8')
+    const filamentDirectory = join(configDirectory('3.0-alpha'), 'presets', 'user', reference.repository, reference.vendor)
+    const destination = join(filamentDirectory, `filament-${profileName}.yaml`)
+    const temporary = join(filamentDirectory, `.${randomUUID()}.tmp`)
+    await mkdir(filamentDirectory, { recursive: true })
+    await writeFile(temporary, buildPrusa3Profile(template, request.material, profileName), { encoding: 'utf8', flag: 'wx' })
+    try {
+      await copyFile(temporary, destination, constants.COPYFILE_EXCL)
+    } finally {
+      await unlink(temporary).catch(() => undefined)
+    }
+    return destination
+  }
+
+  const filamentDirectory = join(configDirectory('2.x'), 'filament')
+  const template = await loadLegacyTemplate(request.template)
   const destination = join(filamentDirectory, `${profileName}.ini`)
   const temporary = join(filamentDirectory, `.${randomUUID()}.tmp`)
+  await mkdir(filamentDirectory, { recursive: true })
   await writeFile(temporary, buildProfile(template, request.material), { encoding: 'utf8', flag: 'wx' })
   try {
     await copyFile(temporary, destination, constants.COPYFILE_EXCL)
@@ -213,12 +294,17 @@ function startAutoUpdates(): void {
 app.whenReady().then(() => {
   ipcMain.handle('app:info', async (): Promise<AppInfo> => {
     const catalog = await loadCatalog()
-    return { configDirectory: configDirectory(), templates: await listTemplates(), catalogUpdatedAt: catalog.updatedAt || null }
+    return { installations: installations(), templates: await listTemplates(), catalogUpdatedAt: catalog.updatedAt || null }
   })
   ipcMain.handle('catalog:load', loadCatalog)
   ipcMain.handle('catalog:sync', syncCatalog)
   ipcMain.handle('profile:install', (_event, request: InstallRequest) => installProfile(request))
-  ipcMain.handle('profiles:reveal', () => shell.openPath(join(configDirectory(), 'filament')))
+  ipcMain.handle('profiles:reveal', (_event, installationId: SlicerInstallationId) => {
+    const directory = installationId === '2.x'
+      ? join(configDirectory('2.x'), 'filament')
+      : join(configDirectory('3.0-alpha'), 'presets', 'user')
+    return shell.openPath(directory)
+  })
   createWindow()
   startAutoUpdates()
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })

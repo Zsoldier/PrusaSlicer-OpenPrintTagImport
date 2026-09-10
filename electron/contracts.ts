@@ -24,10 +24,20 @@ export interface BasePreset {
   name: string
   printer: string
   source: 'Built-in' | 'User'
+  installationId: SlicerInstallationId
+}
+
+export type SlicerInstallationId = '2.x' | '3.0-alpha'
+
+export interface SlicerInstallation {
+  id: SlicerInstallationId
+  name: string
+  configDirectory: string
+  experimental: boolean
 }
 
 export interface AppInfo {
-  configDirectory: string
+  installations: SlicerInstallation[]
   templates: BasePreset[]
   catalogUpdatedAt: string | null
 }

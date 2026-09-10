@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useState } from 'react'
 import { Check, ExternalLink, FolderOpen, RefreshCw, Search, Tag, Thermometer, Upload } from 'lucide-react'
 import './App.css'
-import type { AppInfo, Catalog, Material } from './types'
+import type { AppInfo, Catalog, Material, SlicerInstallationId } from './types'
 
 const emptyCatalog: Catalog = { materials: [], updatedAt: '' }
 function average(minimum: number | null, maximum: number | null): string {
@@ -24,6 +24,7 @@ function App() {
   const [brand, setBrand] = useState('all')
   const [type, setType] = useState('all')
   const [completeOnly, setCompleteOnly] = useState(false)
+  const [installationId, setInstallationId] = useState<SlicerInstallationId>('2.x')
   const [printer, setPrinter] = useState('')
   const [template, setTemplate] = useState('')
   const [templateQuery, setTemplateQuery] = useState('')
@@ -36,7 +37,7 @@ function App() {
     Promise.all([window.openPrintTag.getInfo(), window.openPrintTag.loadCatalog()]).then(([appInfo, savedCatalog]) => {
       const firstMaterial = savedCatalog.materials[0] ?? null
       const firstPreset = appInfo.templates[0]
-      setInfo(appInfo); setPrinter(firstPreset?.printer ?? ''); setTemplate(firstPreset?.id ?? ''); setCatalog(savedCatalog); setSelected(firstMaterial)
+      setInfo(appInfo); setInstallationId(firstPreset?.installationId ?? '2.x'); setPrinter(firstPreset?.printer ?? ''); setTemplate(firstPreset?.id ?? ''); setCatalog(savedCatalog); setSelected(firstMaterial)
       if (firstMaterial) setProfileName(`${firstMaterial.brandName} ${firstMaterial.name}`)
     }).catch((error) => setNotice(friendlyError(error)))
   }, [])
@@ -61,9 +62,12 @@ function App() {
 
   const brands = [...new Set(catalog.materials.map((material) => material.brandName))].sort()
   const types = [...new Set(catalog.materials.map((material) => material.type))].sort()
-  const printers = [...new Set((info?.templates ?? []).map((item) => item.printer))].sort()
+  const installationTemplates = (info?.templates ?? []).filter((item) => item.installationId === installationId)
+  const printers = [...new Set(installationTemplates.map((item) => item.printer))].sort()
   const matchingTemplates = (info?.templates ?? []).filter((item) =>
-    item.printer === printer && `${item.name} ${item.source}`.toLowerCase().includes(templateQuery.toLowerCase()))
+    item.installationId === installationId && item.printer === printer &&
+    `${item.name} ${item.source}`.toLowerCase().includes(templateQuery.toLowerCase()))
+  const selectedInstallation = info?.installations.find((item) => item.id === installationId)
   const visible = catalog.materials.filter((material) => {
     const text = `${material.name} ${material.brandName} ${material.type}`.toLowerCase()
     return text.includes(deferredQuery) && (brand === 'all' || material.brandName === brand) &&
@@ -91,14 +95,23 @@ function App() {
   function filterTemplates(value: string): void {
     setTemplateQuery(value)
     const matches = (info?.templates ?? []).filter((item) =>
-      item.printer === printer && `${item.name} ${item.source}`.toLowerCase().includes(value.toLowerCase()))
+      item.installationId === installationId && item.printer === printer &&
+      `${item.name} ${item.source}`.toLowerCase().includes(value.toLowerCase()))
     if (!matches.some((item) => item.id === template)) setTemplate(matches[0]?.id ?? '')
   }
 
   function selectPrinter(value: string): void {
     setPrinter(value)
     setTemplateQuery('')
-    setTemplate((info?.templates ?? []).find((item) => item.printer === value)?.id ?? '')
+    setTemplate((info?.templates ?? []).find((item) => item.installationId === installationId && item.printer === value)?.id ?? '')
+  }
+
+  function selectInstallation(value: SlicerInstallationId): void {
+    setInstallationId(value)
+    setTemplateQuery('')
+    const firstPreset = (info?.templates ?? []).find((item) => item.installationId === value)
+    setPrinter(firstPreset?.printer ?? '')
+    setTemplate(firstPreset?.id ?? '')
   }
 
   return <main>
@@ -106,7 +119,7 @@ function App() {
       <div className="brandmark"><Tag size={18} /><span>OPENPRINTTAG</span><b>to PrusaSlicer</b></div>
       <div className="header-actions">
         <span className="catalog-date">{catalog.updatedAt ? `Synced ${new Date(catalog.updatedAt).toLocaleDateString()}` : 'Catalog not synced'}</span>
-        <button className="secondary icon-label" onClick={() => void window.openPrintTag.revealProfiles()} title="Open profile folder"><FolderOpen size={16} /> Profiles</button>
+        <button className="secondary icon-label" onClick={() => void window.openPrintTag.revealProfiles(installationId)} title="Open profile folder"><FolderOpen size={16} /> Profiles</button>
         <button className="primary icon-label" onClick={() => void sync()} disabled={busy}><RefreshCw size={16} className={busy ? 'spin' : ''} /> Sync catalog</button>
       </div>
     </header>
@@ -119,7 +132,7 @@ function App() {
         <label style={{ display: 'flex', alignItems: 'center', gap: 9 }}><input type="checkbox" checked={completeOnly} onChange={(event) => filterCompleteProfiles(event.target.checked)} style={{ width: 16, height: 16, padding: 0 }} /><span>Complete profiles only</span></label>
         <div className="source-stat"><strong>{catalog.materials.length.toLocaleString()}</strong><span>FFF materials</span></div>
         <div className="source-stat"><strong>{brands.length.toLocaleString()}</strong><span>brands</span></div>
-        {info && <p className="config-path" title={info.configDirectory}>{info.configDirectory}</p>}
+        {selectedInstallation && <p className="config-path" title={selectedInstallation.configDirectory}>{selectedInstallation.configDirectory}</p>}
       </aside>
       <section className="results" aria-label="Materials">
         <div className="results-head"><span>{visible.length === 300 ? '300+' : visible.length} results</span><span>OpenPrintTag database</span></div>
@@ -140,11 +153,12 @@ function App() {
             <div><span>Chamber</span><strong>{selected.chamberTemperature == null ? 'Not specified' : `${selected.chamberTemperature} C`}</strong></div>
           </div>
           <div className="install-form"><p className="section-label">INSTALL</p>
+            <label>PrusaSlicer version<select value={installationId} onChange={(event) => selectInstallation(event.target.value as SlicerInstallationId)}>{info?.installations.map((item) => <option key={item.id} value={item.id}>{item.name}{item.experimental ? ' (Experimental)' : ''}</option>)}</select></label>
             <label>Target printer<select value={printer} onChange={(event) => selectPrinter(event.target.value)}>{printers.map((item) => <option key={item}>{item}</option>)}</select></label>
             <label>Find base preset<input value={templateQuery} onChange={(event) => filterTemplates(event.target.value)} placeholder="Material or vendor" /></label>
             <label>Base preset<select value={template} onChange={(event) => setTemplate(event.target.value)}>{matchingTemplates.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.source})</option>)}</select></label>
             <label>Profile name<input value={profileName} onChange={(event) => setProfileName(event.target.value)} /></label>
-            {info?.templates.length === 0 && <p className="warning">Create one custom filament preset in PrusaSlicer first.</p>}
+            {installationTemplates.length === 0 && <p className="warning">{installationId === '2.x' ? 'Create one custom filament preset in PrusaSlicer first.' : 'Open PrusaSlicer 3.0 once to initialize its profile repository.'}</p>}
             <button className="install-button" onClick={() => void install()} disabled={busy || !template || !profileName.trim()}><Upload size={17} /> Install profile</button>
             <p className="preserve"><Check size={14} /> Base cooling, flow, and compatibility are preserved.</p>
           </div>
