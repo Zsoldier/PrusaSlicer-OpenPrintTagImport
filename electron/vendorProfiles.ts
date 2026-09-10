@@ -9,7 +9,7 @@ export interface VendorProfile {
 }
 
 export function targetPrinterFromProfile(name: string, contents = ''): string {
-  const inheritedName = contents.match(/^inherits\s*=\s*(.+)$/m)?.[1].trim()
+  const inheritedName = contents.match(/^inherits\s*=\s*(.+)$/m)?.[1].split(';')[0].trim()
   const qualifiedName = inheritedName || name
   const separator = qualifiedName.lastIndexOf('@')
   return separator >= 0 ? qualifiedName.slice(separator + 1).trim() : 'General / custom'
@@ -18,7 +18,9 @@ export function targetPrinterFromProfile(name: string, contents = ''): string {
 function sectionsFromBundle(source: string): Map<string, IniSection> {
   const escapedSectionNames = source.replace(/^\[([^\]]*)\]\s*$/gm, (_line, name: string) =>
     `[${name.replaceAll('.', '\\.')}]`)
-  const document = ini.parse(escapedSectionNames) as Record<string, unknown>
+  const escapedInheritance = escapedSectionNames.replace(/^(inherits\s*=\s*)(.*)$/gm, (_line, prefix: string, value: string) =>
+    `${prefix}${value.replaceAll(';', '\\;')}`)
+  const document = ini.parse(escapedInheritance) as Record<string, unknown>
   const sections = new Map<string, IniSection>()
   for (const [sectionName, value] of Object.entries(document)) {
     if (!sectionName.startsWith('filament:') || typeof value !== 'object' || value == null) continue
@@ -33,8 +35,10 @@ function resolveSection(sections: Map<string, IniSection>, name: string, resolvi
   if (resolving.has(name)) throw new Error(`Circular filament inheritance at "${name}".`)
 
   const nextResolving = new Set(resolving).add(name)
-  const parentName = typeof section.inherits === 'string' ? section.inherits.trim() : ''
-  const parent = parentName ? resolveSection(sections, parentName, nextResolving) : {}
+  const parentNames = typeof section.inherits === 'string'
+    ? section.inherits.split(';').map((parent) => parent.trim()).filter(Boolean)
+    : []
+  const parent = Object.assign({}, ...parentNames.map((parentName) => resolveSection(sections, parentName, nextResolving)))
   const resolved = { ...parent, ...section }
   delete resolved.inherits
   return resolved
@@ -42,7 +46,8 @@ function resolveSection(sections: Map<string, IniSection>, name: string, resolvi
 
 function serializeSection(section: IniSection): string {
   const lines = Object.entries(section).map(([key, value]) => {
-    const serialized = Array.isArray(value) ? value.join(',') : String(value)
+    const text = Array.isArray(value) ? value.join(',') : String(value)
+    const serialized = text.includes('\n') || text.startsWith(';') ? JSON.stringify(text) : text
     return `${key} = ${serialized}`
   })
   return `${lines.join('\n')}\n`

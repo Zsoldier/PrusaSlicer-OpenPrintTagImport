@@ -1,7 +1,7 @@
 {
   "name": "prusaslicer-openprinttag-import",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Import OpenPrintTag material data as PrusaSlicer filament presets",
   "repository": "https://github.com/Zsoldier/PrusaSlicer-OpenPrintTagImport",
   "main": "dist-electron/main.js",

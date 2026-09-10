@@ -29,7 +29,11 @@ function catalogPath(): string {
 
 async function loadCatalog(): Promise<Catalog> {
   try {
-    return JSON.parse(await readFile(catalogPath(), 'utf8')) as Catalog
+    const catalog = JSON.parse(await readFile(catalogPath(), 'utf8')) as Catalog
+    const hasLegacyTemperatureMapping = catalog.materials.length > 0 && catalog.materials.every((material) =>
+      material.minPrintTemperature == null && material.maxPrintTemperature == null &&
+      material.minBedTemperature == null && material.maxBedTemperature == null)
+    return hasLegacyTemperatureMapping ? { materials: [], updatedAt: '' } : catalog
   } catch {
     return { materials: [], updatedAt: '' }
   }
@@ -72,11 +76,11 @@ async function syncCatalog(): Promise<Catalog> {
       type: String(data.abbreviation ?? data.type ?? 'Other'),
       color: typeof primaryColor.color_rgba === 'string' ? primaryColor.color_rgba : null,
       density: optionalNumber(properties.density),
-      minPrintTemperature: optionalNumber(data.min_print_temperature),
-      maxPrintTemperature: optionalNumber(data.max_print_temperature),
-      minBedTemperature: optionalNumber(data.min_bed_temperature),
-      maxBedTemperature: optionalNumber(data.max_bed_temperature),
-      chamberTemperature: optionalNumber(data.chamber_temperature),
+      minPrintTemperature: optionalNumber(properties.min_print_temperature),
+      maxPrintTemperature: optionalNumber(properties.max_print_temperature),
+      minBedTemperature: optionalNumber(properties.min_bed_temperature),
+      maxBedTemperature: optionalNumber(properties.max_bed_temperature),
+      chamberTemperature: optionalNumber(properties.chamber_temperature),
       sourceUrl: DATABASE_BLOB + relativePath,
     })
   }

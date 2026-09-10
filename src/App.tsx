@@ -11,6 +11,10 @@ function average(minimum: number | null, maximum: number | null): string {
   return `${Math.round((minimum + maximum) / 2)} C (${minimum}-${maximum})`
 }
 function friendlyError(error: unknown): string { return error instanceof Error ? error.message : String(error) }
+function hasCompleteProfileValues(material: Material): boolean {
+  return material.density != null && material.minPrintTemperature != null && material.maxPrintTemperature != null &&
+    material.minBedTemperature != null && material.maxBedTemperature != null
+}
 
 function App() {
   const [info, setInfo] = useState<AppInfo | null>(null)
@@ -19,6 +23,7 @@ function App() {
   const [query, setQuery] = useState('')
   const [brand, setBrand] = useState('all')
   const [type, setType] = useState('all')
+  const [completeOnly, setCompleteOnly] = useState(false)
   const [printer, setPrinter] = useState('')
   const [template, setTemplate] = useState('')
   const [templateQuery, setTemplateQuery] = useState('')
@@ -41,6 +46,19 @@ function App() {
     setProfileName(`${material.brandName} ${material.name}`)
   }
 
+  function filterCompleteProfiles(enabled: boolean): void {
+    setCompleteOnly(enabled)
+    if (!enabled || !selected || hasCompleteProfileValues(selected)) return
+    const normalizedQuery = query.toLowerCase()
+    const replacement = catalog.materials.find((material) => {
+      const text = `${material.name} ${material.brandName} ${material.type}`.toLowerCase()
+      return hasCompleteProfileValues(material) && text.includes(normalizedQuery) &&
+        (brand === 'all' || material.brandName === brand) && (type === 'all' || material.type === type)
+    })
+    if (replacement) selectMaterial(replacement)
+    else setSelected(null)
+  }
+
   const brands = [...new Set(catalog.materials.map((material) => material.brandName))].sort()
   const types = [...new Set(catalog.materials.map((material) => material.type))].sort()
   const printers = [...new Set((info?.templates ?? []).map((item) => item.printer))].sort()
@@ -48,7 +66,8 @@ function App() {
     item.printer === printer && `${item.name} ${item.source}`.toLowerCase().includes(templateQuery.toLowerCase()))
   const visible = catalog.materials.filter((material) => {
     const text = `${material.name} ${material.brandName} ${material.type}`.toLowerCase()
-    return text.includes(deferredQuery) && (brand === 'all' || material.brandName === brand) && (type === 'all' || material.type === type)
+    return text.includes(deferredQuery) && (brand === 'all' || material.brandName === brand) &&
+      (type === 'all' || material.type === type) && (!completeOnly || hasCompleteProfileValues(material))
   }).slice(0, 300)
 
   async function sync(): Promise<void> {
@@ -97,6 +116,7 @@ function App() {
         <div className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search materials" aria-label="Search materials" /></div>
         <label>Brand<select value={brand} onChange={(event) => setBrand(event.target.value)}><option value="all">All brands</option>{brands.map((item) => <option key={item}>{item}</option>)}</select></label>
         <label>Material<select value={type} onChange={(event) => setType(event.target.value)}><option value="all">All types</option>{types.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 9 }}><input type="checkbox" checked={completeOnly} onChange={(event) => filterCompleteProfiles(event.target.checked)} style={{ width: 16, height: 16, padding: 0 }} /><span>Complete profiles only</span></label>
         <div className="source-stat"><strong>{catalog.materials.length.toLocaleString()}</strong><span>FFF materials</span></div>
         <div className="source-stat"><strong>{brands.length.toLocaleString()}</strong><span>brands</span></div>
         {info && <p className="config-path" title={info.configDirectory}>{info.configDirectory}</p>}

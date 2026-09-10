@@ -6,16 +6,16 @@ A desktop app that downloads the OpenPrintTag material database and creates loca
 
 Download the latest compiled packages from [GitHub Releases](https://github.com/Zsoldier/PrusaSlicer-OpenPrintTagImport/releases/latest):
 
-- macOS Apple Silicon: `OpenPrintTag-Importer-0.1.1-arm64-mac.zip`
-- Windows installer: `OpenPrintTag-Importer-Setup-0.1.1.exe`
-- Windows portable: `OpenPrintTag-Importer-0.1.1-win.zip`
+- macOS Apple Silicon: `OpenPrintTag-Importer-0.1.2-arm64-mac.zip`
+- Windows installer: `OpenPrintTag-Importer-Setup-0.1.2.exe`
+- Windows portable: `OpenPrintTag-Importer-0.1.2-win.zip`
 
 <a href="https://www.buymeacoffee.com/zsoldier" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## How it works
 
 1. Sync the [`main-pr` branch of the OpenPrintTag database](https://github.com/OpenPrintTag/openprinttag-database/tree/main-pr).
-2. Search or filter its FFF materials.
+2. Search its FFF materials or hide records missing required profile values.
 3. Choose the target printer, then select one of its bundled or custom filament presets as a base.
 4. Preview and install a profile that retains the selected printer compatibility.
 

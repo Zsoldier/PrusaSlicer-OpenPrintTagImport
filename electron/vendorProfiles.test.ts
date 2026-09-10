@@ -17,9 +17,13 @@ temperature = 210
 inherits = *common*
 temperature = 240
 
-[filament:Generic PETG @COREONEINDX HF0.4]
-inherits = Generic PETG
+[filament:*COREONEINDX*]
 compatible_printers_condition = printer_model=~/(COREONE_INDX8T|COREONE_INDX4T)/ and nozzle_high_flow[0]
+
+[filament:Generic PETG @COREONEINDX HF0.4]
+inherits = Generic PETG; *COREONEINDX*
+end_filament_gcode = "; Filament-specific end gcode"
+start_filament_gcode = "M572 S0.052 ; Pressure advance\\nM573 R"
 `
 
 describe('vendor profiles', () => {
@@ -40,9 +44,12 @@ describe('vendor profiles', () => {
   })
 
   it('preserves decimal points in profile names', () => {
+    const profile = loadVendorProfile(bundle, 'Generic PETG @COREONEINDX HF0.4').contents
     expect(listVendorProfiles(bundle)).toContain('Generic PETG @COREONEINDX HF0.4')
-    expect(loadVendorProfile(bundle, 'Generic PETG @COREONEINDX HF0.4').contents)
-      .toContain('printer_model=~/(COREONE_INDX8T|COREONE_INDX4T)/')
+    expect(profile).toContain('printer_model=~/(COREONE_INDX8T|COREONE_INDX4T)/')
+    expect(profile).toContain('start_filament_gcode = "M572 S0.052 ; Pressure advance\\nM573 R"')
+    expect(profile).toContain('end_filament_gcode = "; Filament-specific end gcode"')
+    expect(profile).not.toContain('\nM573 R\n')
   })
 
   it('groups built-in and inherited profiles by target printer', () => {
