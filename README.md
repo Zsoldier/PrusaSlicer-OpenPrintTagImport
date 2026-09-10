@@ -2,6 +2,14 @@
 
 A desktop app that downloads the OpenPrintTag material database and creates local PrusaSlicer filament presets.
 
+## Download
+
+Download the latest compiled packages from [GitHub Releases](https://github.com/Zsoldier/PrusaSlicer-OpenPrintTagImport/releases/latest):
+
+- macOS Apple Silicon: `OpenPrintTag-Importer-0.1.0-arm64-mac.zip`
+- Windows installer: `OpenPrintTag-Importer-Setup-0.1.0.exe`
+- Windows portable: `OpenPrintTag-Importer-0.1.0-win.zip`
+
 <a href="https://www.buymeacoffee.com/zsoldier" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 ## How it works
