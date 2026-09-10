@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { parse, stringify } from 'yaml'
+import { parseAllDocuments, stringify } from 'yaml'
 import type { Material } from './contracts.js'
 
 interface PresetNode {
+  condition?: unknown
   id?: unknown
   name?: unknown
   values?: Record<string, unknown>
@@ -25,6 +26,13 @@ function isPresetNode(value: unknown): value is PresetNode {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
+function parsePresetDocuments(source: string): PresetNode[] {
+  return parseAllDocuments(source).map((document) => {
+    if (document.errors.length > 0) throw document.errors[0]
+    return document.toJS() as unknown
+  }).filter((value): value is PresetNode => isPresetNode(value) && value.kind === 'filament')
+}
+
 function visitNodes(node: PresetNode, visitor: (node: PresetNode) => void): void {
   visitor(node)
   for (const variant of node.variants ?? []) {
@@ -43,16 +51,51 @@ export function targetPrinterFromPrusa3Name(name: string): string {
   return match?.[1] ?? 'All compatible printers'
 }
 
+function targetPrintersFromConditions(conditions: string[]): string[] {
+  const printers = new Set<string>()
+  for (const condition of conditions) {
+    for (const match of condition.matchAll(/printer\.base_model\s*=~\s*\/\(([^)]+)\)\//g)) {
+      match[1].split('|').map((printer) => printer.trim()).filter(Boolean).forEach((printer) => printers.add(printer))
+    }
+    for (const match of condition.matchAll(/printer\.base_model\s*==\s*["']([^"']+)["']/g)) {
+      printers.add(match[1])
+    }
+  }
+  return [...printers]
+}
+
+function canonicalNamedPrinter(namedPrinter: string, conditionPrinters: string[]): string {
+  const normalizedName = namedPrinter.replace(/[^A-Z0-9]/g, '')
+  return conditionPrinters.find((printer) => printer.replace(/[^A-Z0-9]/g, '') === normalizedName) ?? namedPrinter
+}
+
 export function listPrusa3Profiles(source: string): Prusa3Preset[] {
-  const root = parse(source) as unknown
-  if (!isPresetNode(root) || root.kind !== 'filament') return []
   const presets: Prusa3Preset[] = []
-  visitNodes(root, (node) => {
-    if (typeof node.name !== 'string' || node.name.startsWith('*')) return
-    if (hasNamedDescendant(node)) return
-    presets.push({ name: node.name, printer: targetPrinterFromPrusa3Name(node.name) })
-  })
+  function collect(node: PresetNode, ancestorConditions: string[]): void {
+    const conditions = typeof node.condition === 'string'
+      ? [...ancestorConditions, node.condition]
+      : ancestorConditions
+    if (typeof node.name === 'string' && !node.name.startsWith('*') && !hasNamedDescendant(node)) {
+      const namedPrinter = targetPrinterFromPrusa3Name(node.name)
+      const conditionPrinters = targetPrintersFromConditions(conditions)
+      const printers = namedPrinter === 'All compatible printers'
+        ? conditionPrinters
+        : [canonicalNamedPrinter(namedPrinter, conditionPrinters)]
+      for (const printer of printers.length > 0 ? printers : ['All compatible printers']) {
+        presets.push({ name: node.name, printer })
+      }
+    }
+    for (const variant of node.variants ?? []) {
+      if (isPresetNode(variant)) collect(variant, conditions)
+    }
+  }
+  for (const root of parsePresetDocuments(source)) collect(root, [])
   return presets
+}
+
+function containsPresetName(node: PresetNode, name: string): boolean {
+  if (node.name === name) return true
+  return (node.variants ?? []).some((variant) => isPresetNode(variant) && containsPresetName(variant, name))
 }
 
 export function buildPrusa3Profile(
@@ -60,9 +103,13 @@ export function buildPrusa3Profile(
   material: Material,
   profileName: string,
   createId: () => string = randomUUID,
+  selectedPresetName?: string,
 ): string {
-  const root = parse(template) as unknown
-  if (!isPresetNode(root) || root.kind !== 'filament' || typeof root.name !== 'string') {
+  const documents = parsePresetDocuments(template)
+  const root = selectedPresetName
+    ? documents.find((document) => containsPresetName(document, selectedPresetName))
+    : documents[0]
+  if (!root || typeof root.name !== 'string') {
     throw new Error('Invalid PrusaSlicer 3.0 filament preset.')
   }
 

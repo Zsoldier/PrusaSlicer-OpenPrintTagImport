@@ -36,10 +36,42 @@ variants:
 describe('listPrusa3Profiles', () => {
   it('lists selectable leaf variants by target printer', () => {
     expect(listPrusa3Profiles(template)).toEqual([
-      { name: 'Generic PETG @COREONEINDX HF0.4', printer: 'COREONEINDX' },
+      { name: 'Generic PETG @COREONEINDX HF0.4', printer: 'COREONE_INDX' },
+    ])
+  })
+
+  it('derives compatible printers from conditions when a preset has no printer suffix', () => {
+    const source = `kind: filament
+name: Buddy3D ABS ESD
+condition: printer.base_model=~/(COREONE|MK4|MINI)/
+id: buddy-abs
+`
+    expect(listPrusa3Profiles(source)).toEqual([
+      { name: 'Buddy3D ABS ESD', printer: 'COREONE' },
+      { name: 'Buddy3D ABS ESD', printer: 'MK4' },
+      { name: 'Buddy3D ABS ESD', printer: 'MINI' },
+    ])
+    expect(listPrusa3Profiles(source)).not.toContainEqual(expect.objectContaining({ printer: 'COREONE_INDX' }))
+  })
+
+  it('lists presets from every YAML document', () => {
+    const source = `kind: filament
+name: First PLA
+condition: printer.base_model == "MK4"
+id: first
+---
+kind: filament
+name: Second PETG
+condition: printer.base_model == "COREONE_INDX"
+id: second
+`
+    expect(listPrusa3Profiles(source)).toEqual([
+      { name: 'First PLA', printer: 'MK4' },
+      { name: 'Second PETG', printer: 'COREONE_INDX' },
     ])
   })
 })
+
 
 describe('buildPrusa3Profile', () => {
   it('preserves variants while replacing names, IDs, and material values', () => {
@@ -60,5 +92,16 @@ describe('buildPrusa3Profile', () => {
     expect(result.variants[0].values).toMatchObject({ temperature: 237, first_layer_temperature: 237, bed_temperature: 81 })
     expect(result.variants[0].variants[0].variants[0].name).toBe('OpenPrintTag PETG @COREONEINDX HF0.4')
     expect(result.variants[0].variants[0].variants[0].id).toBe('new-4')
+  })
+
+  it('transforms the YAML document containing the selected preset', () => {
+    const source = `kind: filament
+name: Wrong PLA
+id: wrong
+---
+${template}`
+    const result = parse(buildPrusa3Profile(source, material, 'OpenPrintTag PETG', () => 'new-id', 'Generic PETG @COREONEINDX HF0.4'))
+    expect(result.name).toBe('OpenPrintTag PETG')
+    expect(result.inherits).toEqual(['*PET*'])
   })
 })

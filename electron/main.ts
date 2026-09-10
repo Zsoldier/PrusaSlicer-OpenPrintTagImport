@@ -195,14 +195,15 @@ async function loadLegacyTemplate(reference: string): Promise<string> {
   throw new Error('Unknown base preset type.')
 }
 
-function prusa3Reference(reference: string): { source: 'local' | 'user'; repository: string; vendor: string; file: string } {
-  const [version, encodedScope, encodedRepository, encodedVendor, encodedFile] = reference.split(':')
+function prusa3Reference(reference: string): { source: 'local' | 'user'; repository: string; vendor: string; file: string; name: string } {
+  const [version, encodedScope, encodedRepository, encodedVendor, encodedFile, encodedName] = reference.split(':')
   if (version !== 'v3' || (encodedScope !== 'local' && encodedScope !== 'user')) throw new Error('Invalid PrusaSlicer 3.0 base preset.')
   return {
     source: encodedScope,
     repository: safeComponent(encodedRepository),
     vendor: safeComponent(encodedVendor),
     file: safeComponent(encodedFile, '.yaml'),
+    name: decodeURIComponent(encodedName),
   }
 }
 
@@ -216,9 +217,16 @@ async function installProfile(request: InstallRequest): Promise<string> {
     const destination = join(filamentDirectory, `filament-${profileName}.yaml`)
     const temporary = join(filamentDirectory, `.${randomUUID()}.tmp`)
     await mkdir(filamentDirectory, { recursive: true })
-    await writeFile(temporary, buildPrusa3Profile(template, request.material, profileName), { encoding: 'utf8', flag: 'wx' })
+    await writeFile(temporary, buildPrusa3Profile(template, request.material, profileName, randomUUID, reference.name), { encoding: 'utf8', flag: 'wx' })
     try {
-      await copyFile(temporary, destination, constants.COPYFILE_EXCL)
+      try {
+        await copyFile(temporary, destination, constants.COPYFILE_EXCL)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+          throw new Error(`A profile named "${profileName}" already exists. Delete it from Profiles or choose a different name.`, { cause: error })
+        }
+        throw error
+      }
     } finally {
       await unlink(temporary).catch(() => undefined)
     }
@@ -232,7 +240,14 @@ async function installProfile(request: InstallRequest): Promise<string> {
   await mkdir(filamentDirectory, { recursive: true })
   await writeFile(temporary, buildProfile(template, request.material), { encoding: 'utf8', flag: 'wx' })
   try {
-    await copyFile(temporary, destination, constants.COPYFILE_EXCL)
+    try {
+      await copyFile(temporary, destination, constants.COPYFILE_EXCL)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+        throw new Error(`A profile named "${profileName}" already exists. Delete it from Profiles or choose a different name.`, { cause: error })
+      }
+      throw error
+    }
   } finally {
     await unlink(temporary).catch(() => undefined)
   }
