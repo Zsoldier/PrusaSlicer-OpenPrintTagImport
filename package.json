@@ -1,7 +1,7 @@
 {
   "name": "prusaslicer-openprinttag-import",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Import OpenPrintTag material data as PrusaSlicer filament presets",
   "author": "Zsoldier",
   "desktopName": "org.openprinttag.prusaslicer-importer.desktop",
@@ -59,15 +59,20 @@
     "mac": {
       "category": "public.app-category.utilities",
       "notarize": true,
+      "artifactName": "OpenPrintTag-Importer-${version}-${arch}-mac.${ext}",
       "target": [
         "zip"
       ]
     },
     "win": {
+      "artifactName": "OpenPrintTag-Importer-${version}-win.${ext}",
       "target": [
         "nsis",
         "zip"
       ]
+    },
+    "nsis": {
+      "artifactName": "OpenPrintTag-Importer-Setup-${version}.${ext}"
     },
     "linux": {
       "target": [

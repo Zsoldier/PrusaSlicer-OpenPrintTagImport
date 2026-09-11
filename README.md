@@ -6,10 +6,10 @@ A desktop app that downloads the OpenPrintTag material database and creates loca
 
 Download the latest compiled packages from [GitHub Releases](https://github.com/Zsoldier/PrusaSlicer-OpenPrintTagImport/releases/latest):
 
-- macOS Apple Silicon: `OpenPrintTag-Importer-0.1.4-arm64-mac.zip`
-- Windows installer: `OpenPrintTag-Importer-Setup-0.1.4.exe`
-- Windows portable: `OpenPrintTag-Importer-0.1.4-win.zip`
-- Linux AppImage: `OpenPrintTag-Importer-0.1.4-x86_64.AppImage`
+- macOS Apple Silicon: `OpenPrintTag-Importer-0.1.5-arm64-mac.zip`
+- Windows installer: `OpenPrintTag-Importer-Setup-0.1.5.exe`
+- Windows portable: `OpenPrintTag-Importer-0.1.5-win.zip`
+- Linux AppImage: `OpenPrintTag-Importer-0.1.5-x86_64.AppImage`
 
 <a href="https://www.buymeacoffee.com/zsoldier" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 

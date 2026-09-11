@@ -261,7 +261,8 @@ function createWindow(): void {
     height: 820,
     minWidth: 900,
     minHeight: 620,
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    autoHideMenuBar: process.platform !== 'darwin',
     backgroundColor: '#f5f4ef',
     webPreferences: {
       preload: join(currentDirectory, 'preload.cjs'),

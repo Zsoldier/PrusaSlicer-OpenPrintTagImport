@@ -132,7 +132,10 @@ function App() {
         <label style={{ display: 'flex', alignItems: 'center', gap: 9 }}><input type="checkbox" checked={completeOnly} onChange={(event) => filterCompleteProfiles(event.target.checked)} style={{ width: 16, height: 16, padding: 0 }} /><span>Complete profiles only</span></label>
         <div className="source-stat"><strong>{catalog.materials.length.toLocaleString()}</strong><span>FFF materials</span></div>
         <div className="source-stat"><strong>{brands.length.toLocaleString()}</strong><span>brands</span></div>
-        {selectedInstallation && <p className="config-path" title={selectedInstallation.configDirectory}>{selectedInstallation.configDirectory}</p>}
+        {selectedInstallation && <div className="config-location">
+          <span>PrusaSlicer detected at</span>
+          <p className="config-path" title={selectedInstallation.configDirectory}>{selectedInstallation.configDirectory}</p>
+        </div>}
       </aside>
       <section className="results" aria-label="Materials">
         <div className="results-head"><span>{visible.length === 300 ? '300+' : visible.length} results</span><span>OpenPrintTag database</span></div>
