@@ -7,14 +7,13 @@ import { constants } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { AppInfo, BasePreset, Catalog, InstallRequest, Material, SlicerInstallation, SlicerInstallationId } from './contracts.js'
+import type { AppInfo, BasePreset, Catalog, CatalogSource, InstallRequest, Material, SlicerInstallation, SlicerInstallationId } from './contracts.js'
+import { catalogUrls } from './catalogSource.js'
 import { linuxConfigDirectory } from './configDirectory.js'
 import { buildProfile, safeProfileName } from './profile.js'
 import { buildPrusa3Profile, listPrusa3Profiles } from './profile3.js'
 import { listVendorProfiles, loadVendorProfile, targetPrinterFromProfile } from './vendorProfiles.js'
 
-const DATABASE_ARCHIVE = 'https://github.com/OpenPrintTag/openprinttag-database/archive/refs/heads/main-pr.zip'
-const DATABASE_BLOB = 'https://github.com/OpenPrintTag/openprinttag-database/blob/main-pr/'
 const { autoUpdater } = electronUpdater
 const currentDirectory = fileURLToPath(new URL('.', import.meta.url))
 const UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000
@@ -42,9 +41,10 @@ async function loadCatalog(): Promise<Catalog> {
     const hasLegacyTemperatureMapping = catalog.materials.length > 0 && catalog.materials.every((material) =>
       material.minPrintTemperature == null && material.maxPrintTemperature == null &&
       material.minBedTemperature == null && material.maxBedTemperature == null)
-    return hasLegacyTemperatureMapping ? { materials: [], updatedAt: '' } : catalog
+    if (hasLegacyTemperatureMapping) return { materials: [], updatedAt: '', source: 'main' }
+    return { ...catalog, source: catalog.source === 'main-pr' ? 'main-pr' : 'main' }
   } catch {
-    return { materials: [], updatedAt: '' }
+    return { materials: [], updatedAt: '', source: 'main' }
   }
 }
 
@@ -52,8 +52,9 @@ function optionalNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
-async function syncCatalog(): Promise<Catalog> {
-  const response = await fetch(DATABASE_ARCHIVE)
+async function syncCatalog(_event: Electron.IpcMainInvokeEvent, source: CatalogSource = 'main'): Promise<Catalog> {
+  const urls = catalogUrls(source)
+  const response = await fetch(urls.archive)
   if (!response.ok) throw new Error(`Database download failed (${response.status}).`)
   const files = unzipSync(new Uint8Array(await response.arrayBuffer()))
   const decoder = new TextDecoder()
@@ -90,12 +91,12 @@ async function syncCatalog(): Promise<Catalog> {
       minBedTemperature: optionalNumber(properties.min_bed_temperature),
       maxBedTemperature: optionalNumber(properties.max_bed_temperature),
       chamberTemperature: optionalNumber(properties.chamber_temperature),
-      sourceUrl: DATABASE_BLOB + relativePath,
+      sourceUrl: urls.blob + relativePath,
     })
   }
 
   materials.sort((left, right) => left.brandName.localeCompare(right.brandName) || left.name.localeCompare(right.name))
-  const catalog = { materials, updatedAt: new Date().toISOString() }
+  const catalog = { materials, updatedAt: new Date().toISOString(), source }
   await mkdir(app.getPath('userData'), { recursive: true })
   await writeFile(catalogPath(), JSON.stringify(catalog), 'utf8')
   return catalog

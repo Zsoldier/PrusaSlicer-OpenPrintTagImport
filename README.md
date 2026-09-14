@@ -15,7 +15,7 @@ Download the latest compiled packages from [GitHub Releases](https://github.com/
 
 ## How it works
 
-1. Sync the [`main-pr` branch of the OpenPrintTag database](https://github.com/OpenPrintTag/openprinttag-database/tree/main-pr).
+1. Choose and sync either the latest [`main` branch](https://github.com/OpenPrintTag/openprinttag-database/tree/main) or the upstream default [`main-pr` branch](https://github.com/OpenPrintTag/openprinttag-database/tree/main-pr).
 2. Search its FFF materials or hide records missing required profile values.
 3. Choose the PrusaSlicer version and target printer, then select one of its bundled or custom filament presets as a base.
 4. Preview and install a profile that retains the selected printer compatibility.
@@ -23,6 +23,8 @@ Download the latest compiled packages from [GitHub Releases](https://github.com/
 The base preset retains printer compatibility, cooling, retraction, flow, and filament G-code. The importer replaces only values available from OpenPrintTag: nozzle and bed temperature, chamber temperature, color, density, material type, vendor, and a source link in the notes.
 
 Existing files are never overwritten. Restart PrusaSlicer after installation.
+
+`main` is recommended for the newest catalog data. Although `main-pr` remains OpenPrintTag's protected default branch, recent validated pull-request merges and generated manifest updates have been landing on `main` first, so `main-pr` can lag behind it. OpenPrintTag does not currently document a synchronization schedule between the branches.
 
 ## PrusaSlicer compatibility
 

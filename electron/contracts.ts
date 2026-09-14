@@ -17,7 +17,10 @@ export interface Material {
 export interface Catalog {
   materials: Material[]
   updatedAt: string
+  source: CatalogSource
 }
+
+export type CatalogSource = 'main' | 'main-pr'
 
 export interface BasePreset {
   id: string

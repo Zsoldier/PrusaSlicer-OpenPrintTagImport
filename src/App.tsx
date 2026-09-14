@@ -1,9 +1,9 @@
 import { useDeferredValue, useEffect, useState } from 'react'
 import { Check, ExternalLink, FolderOpen, RefreshCw, Search, Tag, Thermometer, Upload } from 'lucide-react'
 import './App.css'
-import type { AppInfo, Catalog, Material, SlicerInstallationId } from './types'
+import type { AppInfo, Catalog, CatalogSource, Material, SlicerInstallationId } from './types'
 
-const emptyCatalog: Catalog = { materials: [], updatedAt: '' }
+const emptyCatalog: Catalog = { materials: [], updatedAt: '', source: 'main' }
 function average(minimum: number | null, maximum: number | null): string {
   if (minimum == null && maximum == null) return 'Not specified'
   if (minimum == null) return `${maximum} C`
@@ -24,6 +24,7 @@ function App() {
   const [brand, setBrand] = useState('all')
   const [type, setType] = useState('all')
   const [completeOnly, setCompleteOnly] = useState(false)
+  const [catalogSource, setCatalogSource] = useState<CatalogSource>('main')
   const [installationId, setInstallationId] = useState<SlicerInstallationId>('2.x')
   const [printer, setPrinter] = useState('')
   const [template, setTemplate] = useState('')
@@ -37,7 +38,7 @@ function App() {
     Promise.all([window.openPrintTag.getInfo(), window.openPrintTag.loadCatalog()]).then(([appInfo, savedCatalog]) => {
       const firstMaterial = savedCatalog.materials[0] ?? null
       const firstPreset = appInfo.templates[0]
-      setInfo(appInfo); setInstallationId(firstPreset?.installationId ?? '2.x'); setPrinter(firstPreset?.printer ?? ''); setTemplate(firstPreset?.id ?? ''); setCatalog(savedCatalog); setSelected(firstMaterial)
+      setInfo(appInfo); setInstallationId(firstPreset?.installationId ?? '2.x'); setPrinter(firstPreset?.printer ?? ''); setTemplate(firstPreset?.id ?? ''); setCatalog(savedCatalog); setCatalogSource(savedCatalog.source); setSelected(firstMaterial)
       if (firstMaterial) setProfileName(`${firstMaterial.brandName} ${firstMaterial.name}`)
     }).catch((error) => setNotice(friendlyError(error)))
   }, [])
@@ -77,7 +78,7 @@ function App() {
   async function sync(): Promise<void> {
     setBusy(true); setNotice('Downloading OpenPrintTag database...')
     try {
-      const next = await window.openPrintTag.syncCatalog()
+      const next = await window.openPrintTag.syncCatalog(catalogSource)
       setCatalog(next)
       if (next.materials[0]) selectMaterial(next.materials[0])
       setNotice(`${next.materials.length.toLocaleString()} FFF materials ready.`)
@@ -130,6 +131,9 @@ function App() {
         <label>Brand<select value={brand} onChange={(event) => setBrand(event.target.value)}><option value="all">All brands</option>{brands.map((item) => <option key={item}>{item}</option>)}</select></label>
         <label>Material<select value={type} onChange={(event) => setType(event.target.value)}><option value="all">All types</option>{types.map((item) => <option key={item}>{item}</option>)}</select></label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 9 }}><input type="checkbox" checked={completeOnly} onChange={(event) => filterCompleteProfiles(event.target.checked)} style={{ width: 16, height: 16, padding: 0 }} /><span>Complete profiles only</span></label>
+        <p className="section-label catalog-source-label">CATALOG SOURCE</p>
+        <label>Database branch<select value={catalogSource} onChange={(event) => setCatalogSource(event.target.value as CatalogSource)}><option value="main">main (latest)</option><option value="main-pr">main-pr (default upstream)</option></select></label>
+        <p className="source-note">main receives recent validated merges first. main-pr is upstream's protected default branch and may lag.</p>
         <div className="source-stat"><strong>{catalog.materials.length.toLocaleString()}</strong><span>FFF materials</span></div>
         <div className="source-stat"><strong>{brands.length.toLocaleString()}</strong><span>brands</span></div>
         {selectedInstallation && <div className="config-location">

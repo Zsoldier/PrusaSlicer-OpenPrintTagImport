@@ -3,7 +3,8 @@ export interface Material {
   density: number | null; minPrintTemperature: number | null; maxPrintTemperature: number | null
   minBedTemperature: number | null; maxBedTemperature: number | null; chamberTemperature: number | null; sourceUrl: string
 }
-export interface Catalog { materials: Material[]; updatedAt: string }
+export type CatalogSource = 'main' | 'main-pr'
+export interface Catalog { materials: Material[]; updatedAt: string; source: CatalogSource }
 export type SlicerInstallationId = '2.x' | '3.0-alpha'
 export interface SlicerInstallation { id: SlicerInstallationId; name: string; configDirectory: string; experimental: boolean }
 export interface BasePreset { id: string; name: string; printer: string; source: 'Built-in' | 'User'; installationId: SlicerInstallationId }
