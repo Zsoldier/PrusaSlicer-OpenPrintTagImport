@@ -40,12 +40,6 @@ function visitNodes(node: PresetNode, visitor: (node: PresetNode) => void): void
   }
 }
 
-function hasNamedDescendant(node: PresetNode): boolean {
-  return (node.variants ?? []).some((variant) => isPresetNode(variant) && (
-    (typeof variant.name === 'string' && !variant.name.startsWith('*')) || hasNamedDescendant(variant)
-  ))
-}
-
 export function targetPrinterFromPrusa3Name(name: string): string {
   const match = name.match(/@([A-Z][A-Z0-9.+_-]*)(?:\s|$)/)
   return match?.[1] ?? 'All compatible printers'
@@ -71,25 +65,19 @@ function canonicalNamedPrinter(namedPrinter: string, conditionPrinters: string[]
 
 export function listPrusa3Profiles(source: string): Prusa3Preset[] {
   const presets: Prusa3Preset[] = []
-  function collect(node: PresetNode, ancestorConditions: string[]): void {
-    const conditions = typeof node.condition === 'string'
-      ? [...ancestorConditions, node.condition]
-      : ancestorConditions
-    if (typeof node.name === 'string' && !node.name.startsWith('*') && !hasNamedDescendant(node)) {
-      const namedPrinter = targetPrinterFromPrusa3Name(node.name)
-      const conditionPrinters = targetPrintersFromConditions(conditions)
-      const printers = namedPrinter === 'All compatible printers'
-        ? conditionPrinters
-        : [canonicalNamedPrinter(namedPrinter, conditionPrinters)]
-      for (const printer of printers.length > 0 ? printers : ['All compatible printers']) {
-        presets.push({ name: node.name, printer })
-      }
-    }
-    for (const variant of node.variants ?? []) {
-      if (isPresetNode(variant)) collect(variant, conditions)
+  for (const root of parsePresetDocuments(source)) {
+    if (typeof root.name !== 'string' || root.name.startsWith('*')) continue
+    const namedPrinter = targetPrinterFromPrusa3Name(root.name)
+    const conditionPrinters = targetPrintersFromConditions(
+      typeof root.condition === 'string' ? [root.condition] : [],
+    )
+    const printers = namedPrinter === 'All compatible printers'
+      ? conditionPrinters
+      : [canonicalNamedPrinter(namedPrinter, conditionPrinters)]
+    for (const printer of printers.length > 0 ? printers : ['All compatible printers']) {
+      presets.push({ name: root.name, printer })
     }
   }
-  for (const root of parsePresetDocuments(source)) collect(root, [])
   return presets
 }
 

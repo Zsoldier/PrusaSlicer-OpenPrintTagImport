@@ -13,6 +13,7 @@ const template = `kind: filament
 inherits:
   - "*PET*"
 name: Generic PETG
+condition: printer.base_model=~/(COREONE|COREONE_INDX)/
 id: root-id
 values:
   filament_vendor: Generic
@@ -34,10 +35,16 @@ variants:
 `
 
 describe('listPrusa3Profiles', () => {
-  it('lists selectable leaf variants by target printer', () => {
+  it('lists the public preset instead of its printer and tool variants', () => {
     expect(listPrusa3Profiles(template)).toEqual([
-      { name: 'Generic PETG @COREONEINDX HF0.4', printer: 'COREONE_INDX' },
+      { name: 'Generic PETG', printer: 'COREONE' },
+      { name: 'Generic PETG', printer: 'COREONE_INDX' },
     ])
+  })
+
+  it('does not expose named variants from implementation presets', () => {
+    const source = template.replace('name: Generic PETG', "name: '*PET*'")
+    expect(listPrusa3Profiles(source)).toEqual([])
   })
 
   it('derives compatible printers from conditions when a preset has no printer suffix', () => {
