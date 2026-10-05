@@ -1,0 +1,79 @@
+name: Package Windows and Linux
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to update
+        required: true
+        default: v0.1.8
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Verify package version
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          if ("v$version" -ne "${{ inputs.tag }}") {
+            throw "package.json version $version does not match tag ${{ inputs.tag }}"
+          }
+      - run: npm run package -- --win
+      - name: Upload Windows packages
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = node -p "require('./package.json').version"
+          $assets = @(
+            "release/OpenPrintTag-Importer-Setup-$version.exe",
+            "release/OpenPrintTag-Importer-Setup-$version.exe.blockmap",
+            "release/OpenPrintTag-Importer-$version-win.zip",
+            "release/latest.yml"
+          )
+          foreach ($asset in $assets) {
+            if (-not (Test-Path $asset)) {
+              throw "Expected package was not created: $asset"
+            }
+          }
+          gh release upload "${{ inputs.tag }}" $assets --clobber
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Verify package version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          test "v$version" = "${{ inputs.tag }}"
+      - run: npm run package -- --linux
+      - name: Upload Linux packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          assets=(
+            "release/OpenPrintTag-Importer-$version-x86_64.AppImage"
+            "release/latest-linux.yml"
+          )
+          for asset in "${assets[@]}"; do
+            test -f "$asset"
+          done
+          gh release upload "${{ inputs.tag }}" "${assets[@]}" --clobber
