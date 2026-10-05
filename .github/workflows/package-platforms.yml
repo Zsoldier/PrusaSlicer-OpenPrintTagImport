@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm test
@@ -29,7 +29,7 @@ jobs:
           if ("v$version" -ne "${{ inputs.tag }}") {
             throw "package.json version $version does not match tag ${{ inputs.tag }}"
           }
-      - run: npm run package -- --win
+      - run: npm run package -- --win --publish never
       - name: Upload Windows packages
         shell: pwsh
         env:
@@ -55,7 +55,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm test
@@ -63,7 +63,7 @@ jobs:
         run: |
           version=$(node -p "require('./package.json').version")
           test "v$version" = "${{ inputs.tag }}"
-      - run: npm run package -- --linux
+      - run: npm run package -- --linux --publish never
       - name: Upload Linux packages
         env:
           GH_TOKEN: ${{ github.token }}

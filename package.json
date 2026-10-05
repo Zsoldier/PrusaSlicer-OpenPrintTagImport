@@ -13,7 +13,7 @@
     "build": "tsc -b && tsc -p electron/tsconfig.json && vite build",
     "package": "npm run build && electron-builder",
     "release": "npm run build && electron-builder --publish always",
-    "test": "vitest run electron/*.test.ts",
+    "test": "vitest run electron",
     "lint": "eslint .",
     "preview": "vite preview"
   },
