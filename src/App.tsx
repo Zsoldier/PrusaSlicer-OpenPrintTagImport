@@ -61,8 +61,17 @@ function App() {
     else setSelected(null)
   }
 
+  function selectBrand(value: string): void {
+    setBrand(value)
+    if (type === 'all' || value === 'all') return
+    const availableTypes = catalog.materials.some((material) => material.brandName === value && material.type === type)
+    if (!availableTypes) setType('all')
+  }
+
   const brands = [...new Set(catalog.materials.map((material) => material.brandName))].sort()
-  const types = [...new Set(catalog.materials.map((material) => material.type))].sort()
+  const types = [...new Set(catalog.materials
+    .filter((material) => brand === 'all' || material.brandName === brand)
+    .map((material) => material.type))].sort()
   const installationTemplates = (info?.templates ?? []).filter((item) => item.installationId === installationId)
   const printers = [...new Set(installationTemplates.map((item) => item.printer))].sort()
   const matchingTemplates = (info?.templates ?? []).filter((item) =>
@@ -128,7 +137,7 @@ function App() {
       <aside className="filters">
         <p className="section-label">LIBRARY</p>
         <div className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search materials" aria-label="Search materials" /></div>
-        <label>Brand<select value={brand} onChange={(event) => setBrand(event.target.value)}><option value="all">All brands</option>{brands.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label>Brand<select value={brand} onChange={(event) => selectBrand(event.target.value)}><option value="all">All brands</option>{brands.map((item) => <option key={item}>{item}</option>)}</select></label>
         <label>Material<select value={type} onChange={(event) => setType(event.target.value)}><option value="all">All types</option>{types.map((item) => <option key={item}>{item}</option>)}</select></label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 9 }}><input type="checkbox" checked={completeOnly} onChange={(event) => filterCompleteProfiles(event.target.checked)} style={{ width: 16, height: 16, padding: 0 }} /><span>Complete profiles only</span></label>
         <p className="section-label catalog-source-label">CATALOG SOURCE</p>

@@ -1,0 +1,27 @@
+#!/bin/sh
+
+attempt=1
+while [ "$attempt" -le 5 ]; do
+  if [ -n "$CODESIGN_APP" ]; then
+    /usr/bin/xattr -cr "$CODESIGN_APP"
+  fi
+  output=$(/usr/bin/codesign "$@" 2>&1)
+  status=$?
+  if [ "$status" -eq 0 ]; then
+    [ -n "$output" ] && printf '%s\n' "$output" >&2
+    exit 0
+  fi
+
+  printf '%s\n' "$output" >&2
+  case "$output" in
+    *"timestamp service is not available"*|*"timestamp was expected but was not found"*)
+      attempt=$((attempt + 1))
+      [ "$attempt" -le 5 ] && sleep 2
+      ;;
+    *)
+      exit "$status"
+      ;;
+  esac
+done
+
+exit "$status"
