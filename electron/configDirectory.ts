@@ -1,15 +1,15 @@
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { posix } from 'node:path'
 
 export function linuxConfigDirectory(
   homeDirectory: string,
   directoryName: string,
   pathExists: (path: string) => boolean = existsSync,
 ): string {
-  const nativeDirectory = join(homeDirectory, '.config', directoryName)
+  const nativeDirectory = posix.join(homeDirectory, '.config', directoryName)
   if (pathExists(nativeDirectory)) return nativeDirectory
 
-  const flatpakDirectory = join(
+  const flatpakDirectory = posix.join(
     homeDirectory,
     '.var',
     'app',
