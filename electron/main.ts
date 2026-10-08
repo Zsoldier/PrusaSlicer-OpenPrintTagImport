@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import type { AppInfo, BasePreset, Catalog, CatalogSource, InstallRequest, Material, SlicerInstallation, SlicerInstallationId, UpdateChannel } from './contracts.js'
 import { catalogUrls } from './catalogSource.js'
 import { linuxConfigDirectory } from './configDirectory.js'
+import { materialType } from './materialType.js'
 import { buildProfile, safeProfileName } from './profile.js'
 import { buildPrusa3Profile, listPrusa3Profiles } from './profile3.js'
 import { isUpdateChannel, updateChannelFromPreferences } from './updateChannel.js'
@@ -67,7 +68,11 @@ async function loadCatalog(): Promise<Catalog> {
       material.minPrintTemperature == null && material.maxPrintTemperature == null &&
       material.minBedTemperature == null && material.maxBedTemperature == null)
     if (hasLegacyTemperatureMapping) return { materials: [], updatedAt: '', source: 'main' }
-    return { ...catalog, source: catalog.source === 'main-pr' ? 'main-pr' : 'main' }
+    return {
+      ...catalog,
+      materials: catalog.materials.map((material) => ({ ...material, type: materialType(material.type) })),
+      source: catalog.source === 'main-pr' ? 'main-pr' : 'main',
+    }
   } catch {
     return { materials: [], updatedAt: '', source: 'main' }
   }
@@ -108,7 +113,7 @@ async function syncCatalog(_event: Electron.IpcMainInvokeEvent, source: CatalogS
       name: String(data.name ?? data.slug ?? materialMatch[2]),
       brand,
       brandName: brandNames.get(brand) ?? brand,
-      type: String(data.abbreviation ?? data.type ?? 'Other'),
+      type: materialType(data.abbreviation, data.type),
       color: typeof primaryColor.color_rgba === 'string' ? primaryColor.color_rgba : null,
       density: optionalNumber(properties.density),
       minPrintTemperature: optionalNumber(properties.min_print_temperature),
