@@ -16,7 +16,7 @@ Download the latest compiled packages from [GitHub Releases](https://github.com/
 ## How it works
 
 1. Choose and sync either the latest [`main` branch](https://github.com/OpenPrintTag/openprinttag-database/tree/main) or the upstream default [`main-pr` branch](https://github.com/OpenPrintTag/openprinttag-database/tree/main-pr).
-2. Search its FFF materials, filter by brand and its available material types, or hide records missing required profile values.
+2. Search its FFF materials, use the linked brand and material filters to narrow each other's choices, or hide records missing required profile values.
 3. Choose the PrusaSlicer version and target printer, then select one of its bundled or custom filament presets as a base.
 4. Preview and install a profile that retains the selected printer compatibility.
 
@@ -36,6 +36,8 @@ On Linux, the importer supports both native PrusaSlicer configuration under `~/.
 Open PrusaSlicer 3.0 once before importing so it can initialize and download its profile repository. The alpha directory and preset schema may change before the stable 3.0 release; 2.x support remains independent.
 
 Packaged builds check GitHub Releases for updates shortly after launch and every four hours. Updates download in the background, then the app asks before restarting to install them.
+
+Stable releases are used by default. Enable **Development updates** in the app sidebar to opt in to GitHub prereleases for testing before they are promoted to stable.
 
 ## Development
 
@@ -65,6 +67,8 @@ To publish a GitHub Release and its update metadata, increment `version` in `pac
 ```bash
 GH_TOKEN=... npm run release
 ```
+
+Development releases use semantic prerelease versions such as `0.1.9-dev.1`, are published from the `dev` branch, and must be marked as a GitHub prerelease. Opted-in apps will discover them automatically.
 
 macOS releases must be signed and notarized. Store Apple notarization credentials in Keychain once, then expose that profile to electron-builder when packaging:
 

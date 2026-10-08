@@ -7,16 +7,18 @@ import { constants } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { AppInfo, BasePreset, Catalog, CatalogSource, InstallRequest, Material, SlicerInstallation, SlicerInstallationId } from './contracts.js'
+import type { AppInfo, BasePreset, Catalog, CatalogSource, InstallRequest, Material, SlicerInstallation, SlicerInstallationId, UpdateChannel } from './contracts.js'
 import { catalogUrls } from './catalogSource.js'
 import { linuxConfigDirectory } from './configDirectory.js'
 import { buildProfile, safeProfileName } from './profile.js'
 import { buildPrusa3Profile, listPrusa3Profiles } from './profile3.js'
+import { isUpdateChannel, updateChannelFromPreferences } from './updateChannel.js'
 import { listVendorProfiles, loadVendorProfile, targetPrinterFromProfile } from './vendorProfiles.js'
 
 const { autoUpdater } = electronUpdater
 const currentDirectory = fileURLToPath(new URL('.', import.meta.url))
 const UPDATE_INTERVAL_MS = 4 * 60 * 60 * 1000
+let updateChannel: UpdateChannel = 'stable'
 
 function configDirectory(installationId: SlicerInstallationId): string {
   const directoryName = installationId === '2.x' ? 'PrusaSlicer' : 'PrusaSlicer3-dev'
@@ -33,6 +35,29 @@ function installations(): SlicerInstallation[] {
 
 function catalogPath(): string {
   return join(app.getPath('userData'), 'catalog.json')
+}
+
+function preferencesPath(): string {
+  return join(app.getPath('userData'), 'preferences.json')
+}
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error
+}
+
+async function loadUpdateChannel(): Promise<UpdateChannel> {
+  try {
+    return updateChannelFromPreferences(JSON.parse(await readFile(preferencesPath(), 'utf8')))
+  } catch (error) {
+    if (isNodeError(error) && error.code === 'ENOENT') return 'stable'
+    console.error('Could not load update preferences:', error)
+    return 'stable'
+  }
+}
+
+async function saveUpdateChannel(channel: UpdateChannel): Promise<void> {
+  await mkdir(app.getPath('userData'), { recursive: true })
+  await writeFile(preferencesPath(), JSON.stringify({ updateChannel: channel }), 'utf8')
 }
 
 async function loadCatalog(): Promise<Catalog> {
@@ -283,9 +308,21 @@ function createWindow(): void {
   else void window.loadFile(join(currentDirectory, '../dist/index.html'))
 }
 
+function applyUpdateChannel(): void {
+  autoUpdater.allowPrerelease = updateChannel === 'development'
+}
+
+function checkForUpdates(): void {
+  if (!app.isPackaged) return
+  void autoUpdater.checkForUpdates().catch((error: unknown) => {
+    console.error('Could not check for updates:', error)
+  })
+}
+
 function startAutoUpdates(): void {
   if (!app.isPackaged) return
 
+  applyUpdateChannel()
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
   autoUpdater.on('error', (error) => console.error('Automatic update failed:', error))
@@ -302,17 +339,29 @@ function startAutoUpdates(): void {
     if (result.response === 0) autoUpdater.quitAndInstall(false, true)
   })
 
-  const check = () => void autoUpdater.checkForUpdates().catch((error: unknown) => {
-    console.error('Could not check for updates:', error)
-  })
-  setTimeout(check, 10_000).unref()
-  setInterval(check, UPDATE_INTERVAL_MS).unref()
+  setTimeout(checkForUpdates, 10_000).unref()
+  setInterval(checkForUpdates, UPDATE_INTERVAL_MS).unref()
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  updateChannel = await loadUpdateChannel()
   ipcMain.handle('app:info', async (): Promise<AppInfo> => {
     const catalog = await loadCatalog()
-    return { installations: installations(), templates: await listTemplates(), catalogUpdatedAt: catalog.updatedAt || null }
+    return {
+      installations: installations(),
+      templates: await listTemplates(),
+      catalogUpdatedAt: catalog.updatedAt || null,
+      version: app.getVersion(),
+      updateChannel,
+    }
+  })
+  ipcMain.handle('app:set-update-channel', async (_event, channel: unknown): Promise<UpdateChannel> => {
+    if (!isUpdateChannel(channel)) throw new Error(`Unsupported update channel: ${String(channel)}`)
+    await saveUpdateChannel(channel)
+    updateChannel = channel
+    applyUpdateChannel()
+    checkForUpdates()
+    return updateChannel
   })
   ipcMain.handle('catalog:load', loadCatalog)
   ipcMain.handle('catalog:sync', syncCatalog)

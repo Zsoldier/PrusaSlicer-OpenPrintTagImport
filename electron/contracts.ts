@@ -21,6 +21,7 @@ export interface Catalog {
 }
 
 export type CatalogSource = 'main' | 'main-pr'
+export type UpdateChannel = 'stable' | 'development'
 
 export interface BasePreset {
   id: string
@@ -43,6 +44,8 @@ export interface AppInfo {
   installations: SlicerInstallation[]
   templates: BasePreset[]
   catalogUpdatedAt: string | null
+  version: string
+  updateChannel: UpdateChannel
 }
 
 export interface InstallRequest {

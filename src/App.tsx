@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useState } from 'react'
 import { Check, ExternalLink, FolderOpen, RefreshCw, Search, Tag, Thermometer, Upload } from 'lucide-react'
 import './App.css'
-import type { AppInfo, Catalog, CatalogSource, Material, SlicerInstallationId } from './types'
+import type { AppInfo, Catalog, CatalogSource, Material, SlicerInstallationId, UpdateChannel } from './types'
 
 const emptyCatalog: Catalog = { materials: [], updatedAt: '', source: 'main' }
 function average(minimum: number | null, maximum: number | null): string {
@@ -25,6 +25,7 @@ function App() {
   const [type, setType] = useState('all')
   const [completeOnly, setCompleteOnly] = useState(false)
   const [catalogSource, setCatalogSource] = useState<CatalogSource>('main')
+  const [updateChannel, setUpdateChannel] = useState<UpdateChannel>('stable')
   const [installationId, setInstallationId] = useState<SlicerInstallationId>('2.x')
   const [printer, setPrinter] = useState('')
   const [template, setTemplate] = useState('')
@@ -38,7 +39,7 @@ function App() {
     Promise.all([window.openPrintTag.getInfo(), window.openPrintTag.loadCatalog()]).then(([appInfo, savedCatalog]) => {
       const firstMaterial = savedCatalog.materials[0] ?? null
       const firstPreset = appInfo.templates[0]
-      setInfo(appInfo); setInstallationId(firstPreset?.installationId ?? '2.x'); setPrinter(firstPreset?.printer ?? ''); setTemplate(firstPreset?.id ?? ''); setCatalog(savedCatalog); setCatalogSource(savedCatalog.source); setSelected(firstMaterial)
+      setInfo(appInfo); setInstallationId(firstPreset?.installationId ?? '2.x'); setPrinter(firstPreset?.printer ?? ''); setTemplate(firstPreset?.id ?? ''); setCatalog(savedCatalog); setCatalogSource(savedCatalog.source); setUpdateChannel(appInfo.updateChannel); setSelected(firstMaterial)
       if (firstMaterial) setProfileName(`${firstMaterial.brandName} ${firstMaterial.name}`)
     }).catch((error) => setNotice(friendlyError(error)))
   }, [])
@@ -64,11 +65,21 @@ function App() {
   function selectBrand(value: string): void {
     setBrand(value)
     if (type === 'all' || value === 'all') return
-    const availableTypes = catalog.materials.some((material) => material.brandName === value && material.type === type)
-    if (!availableTypes) setType('all')
+    const typeIsAvailable = catalog.materials.some((material) => material.brandName === value && material.type === type)
+    if (!typeIsAvailable) setType('all')
   }
 
-  const brands = [...new Set(catalog.materials.map((material) => material.brandName))].sort()
+  function selectType(value: string): void {
+    setType(value)
+    if (brand === 'all' || value === 'all') return
+    const brandIsAvailable = catalog.materials.some((material) => material.type === value && material.brandName === brand)
+    if (!brandIsAvailable) setBrand('all')
+  }
+
+  const allBrands = [...new Set(catalog.materials.map((material) => material.brandName))].sort()
+  const brands = [...new Set(catalog.materials
+    .filter((material) => type === 'all' || material.type === type)
+    .map((material) => material.brandName))].sort()
   const types = [...new Set(catalog.materials
     .filter((material) => brand === 'all' || material.brandName === brand)
     .map((material) => material.type))].sort()
@@ -100,6 +111,18 @@ function App() {
       const path = await window.openPrintTag.installProfile({ material: selected, template, profileName })
       setNotice(`Installed ${path}. Restart PrusaSlicer to load it.`)
     } catch (error) { setNotice(friendlyError(error)) } finally { setBusy(false) }
+  }
+
+  async function selectUpdateChannel(enabled: boolean): Promise<void> {
+    const channel: UpdateChannel = enabled ? 'development' : 'stable'
+    try {
+      setUpdateChannel(await window.openPrintTag.setUpdateChannel(channel))
+      setNotice(enabled
+        ? 'Development updates enabled. Checking for prereleases now.'
+        : 'Development updates disabled. Future checks will use stable releases.')
+    } catch (error) {
+      setNotice(friendlyError(error))
+    }
   }
 
   function filterTemplates(value: string): void {
@@ -138,13 +161,16 @@ function App() {
         <p className="section-label">LIBRARY</p>
         <div className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search materials" aria-label="Search materials" /></div>
         <label>Brand<select value={brand} onChange={(event) => selectBrand(event.target.value)}><option value="all">All brands</option>{brands.map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label>Material<select value={type} onChange={(event) => setType(event.target.value)}><option value="all">All types</option>{types.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label>Material<select value={type} onChange={(event) => selectType(event.target.value)}><option value="all">All types</option>{types.map((item) => <option key={item}>{item}</option>)}</select></label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 9 }}><input type="checkbox" checked={completeOnly} onChange={(event) => filterCompleteProfiles(event.target.checked)} style={{ width: 16, height: 16, padding: 0 }} /><span>Complete profiles only</span></label>
         <p className="section-label catalog-source-label">CATALOG SOURCE</p>
         <label>Database branch<select value={catalogSource} onChange={(event) => setCatalogSource(event.target.value as CatalogSource)}><option value="main">main (latest)</option><option value="main-pr">main-pr (default upstream)</option></select></label>
         <p className="source-note">main receives recent validated merges first. main-pr is upstream's protected default branch and may lag.</p>
+        <p className="section-label catalog-source-label">APP UPDATES</p>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 9 }}><input type="checkbox" checked={updateChannel === 'development'} onChange={(event) => void selectUpdateChannel(event.target.checked)} style={{ width: 16, height: 16, padding: 0 }} /><span>Development updates</span></label>
+        <p className="source-note">Opt in to prerelease builds before they reach the stable channel. Current version: {info?.version ?? 'unknown'}.</p>
         <div className="source-stat"><strong>{catalog.materials.length.toLocaleString()}</strong><span>FFF materials</span></div>
-        <div className="source-stat"><strong>{brands.length.toLocaleString()}</strong><span>brands</span></div>
+        <div className="source-stat"><strong>{allBrands.length.toLocaleString()}</strong><span>brands</span></div>
         {selectedInstallation && <div className="config-location">
           <span>PrusaSlicer detected at</span>
           <p className="config-path" title={selectedInstallation.configDirectory}>{selectedInstallation.configDirectory}</p>
