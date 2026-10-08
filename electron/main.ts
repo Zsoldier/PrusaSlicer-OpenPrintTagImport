@@ -7,13 +7,13 @@ import { constants } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { AppInfo, BasePreset, Catalog, CatalogSource, InstallRequest, Material, SlicerInstallation, SlicerInstallationId, UpdateChannel } from './contracts.js'
+import type { AppInfo, BasePreset, Catalog, CatalogSource, InstallRequest, Material, SlicerInstallation, SlicerInstallationId, UpdateChannel, UpdateCheckResponse } from './contracts.js'
 import { catalogUrls } from './catalogSource.js'
 import { linuxConfigDirectory } from './configDirectory.js'
 import { materialType } from './materialType.js'
 import { buildProfile, safeProfileName } from './profile.js'
 import { buildPrusa3Profile, listPrusa3Profiles } from './profile3.js'
-import { isUpdateChannel, updateChannelFromPreferences } from './updateChannel.js'
+import { isUpdateChannel, updateChannelFromPreferences, updateCheckResponse } from './updateChannel.js'
 import { listVendorProfiles, loadVendorProfile, targetPrinterFromProfile } from './vendorProfiles.js'
 
 const { autoUpdater } = electronUpdater
@@ -324,6 +324,11 @@ function checkForUpdates(): void {
   })
 }
 
+async function checkForUpdatesManually(): Promise<UpdateCheckResponse> {
+  if (!app.isPackaged) return updateCheckResponse(app.getVersion(), null)
+  return updateCheckResponse(app.getVersion(), await autoUpdater.checkForUpdates())
+}
+
 function startAutoUpdates(): void {
   if (!app.isPackaged) return
 
@@ -368,6 +373,7 @@ app.whenReady().then(async () => {
     checkForUpdates()
     return updateChannel
   })
+  ipcMain.handle('app:check-for-updates', checkForUpdatesManually)
   ipcMain.handle('catalog:load', loadCatalog)
   ipcMain.handle('catalog:sync', syncCatalog)
   ipcMain.handle('profile:install', (_event, request: InstallRequest) => installProfile(request))

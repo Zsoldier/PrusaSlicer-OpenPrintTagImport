@@ -37,7 +37,7 @@ Open PrusaSlicer 3.0 once before importing so it can initialize and download its
 
 Packaged builds check GitHub Releases for updates shortly after launch and every four hours. Updates download in the background, then the app asks before restarting to install them.
 
-Stable releases are used by default. Enable **Development updates** in the app sidebar to opt in to GitHub prereleases for testing before they are promoted to stable.
+Stable releases are used by default. Enable **Development updates** in the app sidebar to opt in to GitHub prereleases for testing before they are promoted to stable. Use **Check for updates** there to run an update check immediately.
 
 ## Development
 

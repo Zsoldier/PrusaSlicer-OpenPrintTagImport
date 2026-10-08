@@ -22,6 +22,12 @@ export interface Catalog {
 
 export type CatalogSource = 'main' | 'main-pr'
 export type UpdateChannel = 'stable' | 'development'
+export type UpdateCheckStatus = 'available' | 'current' | 'unavailable'
+
+export interface UpdateCheckResponse {
+  status: UpdateCheckStatus
+  version: string
+}
 
 export interface BasePreset {
   id: string

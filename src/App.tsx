@@ -32,6 +32,7 @@ function App() {
   const [templateQuery, setTemplateQuery] = useState('')
   const [profileName, setProfileName] = useState('')
   const [busy, setBusy] = useState(false)
+  const [checkingUpdates, setCheckingUpdates] = useState(false)
   const [notice, setNotice] = useState('')
   const deferredQuery = useDeferredValue(query.toLowerCase())
 
@@ -125,6 +126,21 @@ function App() {
     }
   }
 
+  async function checkForUpdates(): Promise<void> {
+    setCheckingUpdates(true)
+    setNotice('Checking for updates...')
+    try {
+      const result = await window.openPrintTag.checkForUpdates()
+      if (result.status === 'available') setNotice(`Version ${result.version} is available and downloading in the background.`)
+      else if (result.status === 'current') setNotice(`You're up to date with version ${result.version}.`)
+      else setNotice('Update checks are available in packaged builds.')
+    } catch (error) {
+      setNotice(friendlyError(error))
+    } finally {
+      setCheckingUpdates(false)
+    }
+  }
+
   function filterTemplates(value: string): void {
     setTemplateQuery(value)
     const matches = (info?.templates ?? []).filter((item) =>
@@ -169,6 +185,7 @@ function App() {
         <p className="section-label catalog-source-label">APP UPDATES</p>
         <label style={{ display: 'flex', alignItems: 'center', gap: 9 }}><input type="checkbox" checked={updateChannel === 'development'} onChange={(event) => void selectUpdateChannel(event.target.checked)} style={{ width: 16, height: 16, padding: 0 }} /><span>Development updates</span></label>
         <p className="source-note">Opt in to prerelease builds before they reach the stable channel. Current version: {info?.version ?? 'unknown'}.</p>
+        <button className="secondary icon-label update-check" onClick={() => void checkForUpdates()} disabled={checkingUpdates}><RefreshCw size={15} className={checkingUpdates ? 'spin' : ''} /> {checkingUpdates ? 'Checking...' : 'Check for updates'}</button>
         <div className="source-stat"><strong>{catalog.materials.length.toLocaleString()}</strong><span>FFF materials</span></div>
         <div className="source-stat"><strong>{allBrands.length.toLocaleString()}</strong><span>brands</span></div>
         {selectedInstallation && <div className="config-location">

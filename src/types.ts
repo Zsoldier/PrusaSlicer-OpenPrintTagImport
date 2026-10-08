@@ -5,6 +5,8 @@ export interface Material {
 }
 export type CatalogSource = 'main' | 'main-pr'
 export type UpdateChannel = 'stable' | 'development'
+export type UpdateCheckStatus = 'available' | 'current' | 'unavailable'
+export interface UpdateCheckResponse { status: UpdateCheckStatus; version: string }
 export interface Catalog { materials: Material[]; updatedAt: string; source: CatalogSource }
 export type SlicerInstallationId = '2.x' | '3.0-alpha'
 export interface SlicerInstallation { id: SlicerInstallationId; name: string; configDirectory: string; experimental: boolean }
